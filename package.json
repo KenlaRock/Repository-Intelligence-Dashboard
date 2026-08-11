@@ -1,0 +1,18 @@
+{
+  "name": "repository-intelligence-dashboard-template",
+  "version": "1.0.1",
+  "private": true,
+  "description": "Neutral, live, read-only repository intelligence dashboard installation base.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "configure": "node scripts/configure.mjs",
+    "install:copy": "node scripts/install.mjs",
+    "serve": "node scripts/serve.mjs",
+    "validate:dashboard": "node .agents/skills/maintain-live-repository-dashboard/scripts/validate-dashboard.mjs",
+    "validate": "node scripts/validate-package.mjs"
+  }
+}

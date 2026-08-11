@@ -1,0 +1,2578 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0a0f18">
+  <meta name="description" content="Live, read-only repository intelligence dashboard. All metrics are derived at runtime from the selected repository source.">
+  <title>Repository Intelligence Dashboard</title>
+  <style>
+    :root {
+      --bg: #070b12;
+      --surface: #0d1420;
+      --surface-2: #121c2b;
+      --surface-3: #182437;
+      --line: #26364b;
+      --line-soft: #1b293a;
+      --text: #edf5ff;
+      --muted: #8fa4bb;
+      --faint: #667b92;
+      --cyan: #38d7ff;
+      --cyan-2: #158db3;
+      --lime: #b8f36a;
+      --amber: #ffbf5a;
+      --red: #ff6b7a;
+      --violet: #a98bff;
+      --blue: #6aa8ff;
+      --radius: 18px;
+      --radius-sm: 11px;
+      --shadow: 0 18px 55px rgb(0 0 0 / 28%);
+      --nav-width: 246px;
+      --top-height: 76px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 82% -10%, rgb(56 215 255 / 12%), transparent 30rem),
+        radial-gradient(circle at -10% 95%, rgb(169 139 255 / 8%), transparent 34rem),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    a { color: var(--cyan); }
+    code, pre, .mono {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-variant-ligatures: none;
+    }
+    .skip-link {
+      position: fixed;
+      z-index: 1000;
+      top: 10px;
+      left: 10px;
+      padding: 10px 14px;
+      color: #061018;
+      background: var(--cyan);
+      border-radius: 8px;
+      transform: translateY(-160%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+    .sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      overflow: hidden !important;
+      clip: rect(0 0 0 0) !important;
+      white-space: nowrap !important;
+    }
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); }
+    .faint { color: var(--faint); }
+    .accent { color: var(--cyan); }
+    .positive { color: var(--lime); }
+    .warning { color: var(--amber); }
+    .danger { color: var(--red); }
+
+    .shell { min-height: 100vh; }
+    .sidebar {
+      position: fixed;
+      z-index: 30;
+      inset: 0 auto 0 0;
+      width: var(--nav-width);
+      padding: 24px 16px;
+      border-right: 1px solid var(--line-soft);
+      background: rgb(9 14 23 / 92%);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      padding: 0 8px;
+    }
+    .brand-mark {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      border: 1px solid rgb(56 215 255 / 48%);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgb(56 215 255 / 18%), rgb(169 139 255 / 12%));
+      box-shadow: inset 0 0 20px rgb(56 215 255 / 8%);
+    }
+    .brand-mark::before,
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border: 2px solid var(--cyan);
+      border-radius: 50%;
+    }
+    .brand-mark::after {
+      inset: 15px;
+      border: 0;
+      background: var(--lime);
+      box-shadow: 0 0 12px var(--lime);
+    }
+    .brand strong { display: block; font-size: 14px; letter-spacing: .02em; }
+    .brand small { display: block; color: var(--muted); font-size: 11px; }
+    .nav-list { display: grid; gap: 6px; }
+    .nav-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      color: var(--muted);
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: .18s ease;
+    }
+    .nav-btn:hover { color: var(--text); background: var(--surface-2); }
+    .nav-btn[aria-selected="true"] {
+      color: var(--text);
+      border-color: rgb(56 215 255 / 20%);
+      background: linear-gradient(90deg, rgb(56 215 255 / 13%), rgb(56 215 255 / 3%));
+    }
+    .nav-icon {
+      width: 22px;
+      color: var(--cyan);
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: .05em;
+    }
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 14px 10px 2px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--faint);
+      font-size: 11px;
+    }
+
+    .workspace { margin-left: var(--nav-width); min-width: 0; }
+    .topbar {
+      position: sticky;
+      z-index: 25;
+      top: 0;
+      min-height: var(--top-height);
+      padding: 14px clamp(18px, 3vw, 38px);
+      border-bottom: 1px solid var(--line-soft);
+      background: rgb(7 11 18 / 84%);
+      backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .live-identity { min-width: 0; }
+    .live-identity h1 {
+      margin: 0;
+      overflow: hidden;
+      font-size: clamp(16px, 2vw, 21px);
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .live-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--faint);
+    }
+    .live-dot.on { background: var(--lime); box-shadow: 0 0 12px rgb(184 243 106 / 70%); }
+    .live-dot.loading { background: var(--amber); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 50% { opacity: .35; } }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .button {
+      min-height: 40px;
+      padding: 8px 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--text);
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: .18s ease;
+    }
+    .button:hover:not(:disabled) { border-color: var(--cyan-2); transform: translateY(-1px); }
+    .button:disabled { cursor: not-allowed; opacity: .45; }
+    .button.primary {
+      border-color: transparent;
+      color: #061018;
+      background: linear-gradient(135deg, var(--cyan), #8beaff);
+      font-weight: 720;
+    }
+    .button.ghost { background: transparent; }
+    .button.danger { color: #ffdce1; border-color: rgb(255 107 122 / 35%); }
+    .icon-button { width: 42px; padding: 8px; }
+
+    main { padding: 28px clamp(18px, 3vw, 38px) 84px; }
+    .view { display: none; animation: enter .24s ease; }
+    .view.active { display: block; }
+    @keyframes enter { from { opacity: 0; transform: translateY(4px); } }
+    .view-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .view-head h2 { margin: 0 0 4px; font-size: clamp(21px, 3vw, 30px); }
+    .view-head p { max-width: 780px; margin: 0; color: var(--muted); }
+
+    .connect-hero {
+      min-height: calc(100vh - var(--top-height) - 130px);
+      display: grid;
+      place-items: center;
+    }
+    .connect-card {
+      width: min(760px, 100%);
+      padding: clamp(24px, 5vw, 52px);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background:
+        linear-gradient(145deg, rgb(56 215 255 / 8%), transparent 38%),
+        var(--surface);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .connect-card .eyebrow { margin-bottom: 14px; color: var(--cyan); }
+    .connect-card h2 { margin: 0 0 12px; font-size: clamp(27px, 5vw, 46px); line-height: 1.08; }
+    .connect-card p { max-width: 630px; margin: 0 auto 26px; color: var(--muted); }
+    .connect-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .truth-note {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .hero-strip {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 18px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(115deg, rgb(56 215 255 / 9%), rgb(169 139 255 / 5%) 55%, transparent), var(--surface);
+    }
+    .hero-strip::after {
+      content: "";
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      right: -90px;
+      top: -120px;
+      border: 1px solid rgb(56 215 255 / 18%);
+      border-radius: 50%;
+      box-shadow: 0 0 0 38px rgb(56 215 255 / 3%), 0 0 0 76px rgb(56 215 255 / 2%);
+      pointer-events: none;
+    }
+    .hero-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; align-items: end; }
+    .hero-kicker { margin: 0 0 5px; color: var(--cyan); font-size: 11px; text-transform: uppercase; letter-spacing: .14em; }
+    .hero-title { margin: 0; font-size: clamp(22px, 3vw, 35px); line-height: 1.12; }
+    .hero-sub { margin: 8px 0 0; color: var(--muted); }
+    .head-box { position: relative; z-index: 1; min-width: 0; }
+    .head-box code { display: block; overflow: hidden; color: var(--lime); text-overflow: ellipsis; white-space: nowrap; }
+    .head-box small { color: var(--muted); }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .kpi {
+      min-width: 0;
+      padding: 16px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+    .kpi-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+    .kpi-value { margin-top: 5px; font-size: clamp(23px, 3vw, 31px); font-weight: 720; line-height: 1; }
+    .kpi-detail { margin-top: 7px; overflow: hidden; color: var(--faint); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .grid { display: grid; gap: 16px; margin: 16px 0; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .panel {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .panel-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .panel h3 { margin: 0; font-size: 16px; }
+    .panel-head p, .panel > p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--surface-2);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .badge.good { color: var(--lime); border-color: rgb(184 243 106 / 22%); }
+    .badge.warn { color: var(--amber); border-color: rgb(255 191 90 / 25%); }
+    .badge.bad { color: var(--red); border-color: rgb(255 107 122 / 28%); }
+    .badge.info { color: var(--cyan); border-color: rgb(56 215 255 / 24%); }
+
+    .score-list { display: grid; gap: 15px; }
+    .score-row { display: grid; gap: 7px; }
+    .score-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+    .score-meta span:first-child { color: var(--muted); }
+    .progress {
+      position: relative;
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #070b11;
+      box-shadow: inset 0 0 0 1px var(--line-soft);
+    }
+    .progress > i {
+      display: block;
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan-2), var(--cyan));
+      transition: width .45s ease;
+    }
+    .progress > i.good { background: linear-gradient(90deg, #5aa82a, var(--lime)); }
+    .progress > i.warn { background: linear-gradient(90deg, #ba7724, var(--amber)); }
+    .progress > i.bad { background: linear-gradient(90deg, #a83248, var(--red)); }
+
+    .donut-wrap { display: grid; grid-template-columns: minmax(140px, 190px) 1fr; gap: 18px; align-items: center; }
+    .donut {
+      position: relative;
+      width: min(180px, 100%);
+      aspect-ratio: 1;
+      margin: auto;
+      border-radius: 50%;
+      background: conic-gradient(var(--line) 0 100%);
+    }
+    .donut::after {
+      content: "";
+      position: absolute;
+      inset: 24%;
+      border: 1px solid var(--line-soft);
+      border-radius: 50%;
+      background: var(--surface);
+    }
+    .donut-center {
+      position: absolute;
+      z-index: 2;
+      inset: 34%;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-weight: 720;
+      text-align: center;
+    }
+    .legend { display: grid; gap: 8px; }
+    .legend-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; gap: 8px; align-items: center; color: var(--muted); font-size: 11px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 3px; }
+    .legend-row strong { overflow: hidden; color: var(--text); font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+
+    .bar-list { display: grid; gap: 10px; }
+    .bar-row { display: grid; grid-template-columns: minmax(90px, 150px) 1fr auto; gap: 10px; align-items: center; font-size: 11px; }
+    .bar-label { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { height: 9px; overflow: hidden; border-radius: 99px; background: #070b11; }
+    .bar-fill { height: 100%; min-width: 2px; border-radius: inherit; background: linear-gradient(90deg, var(--violet), var(--cyan)); }
+
+    .phase-list { display: grid; gap: 10px; }
+    .phase-card {
+      display: grid;
+      grid-template-columns: minmax(150px, 1fr) minmax(120px, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      background: var(--surface-2);
+    }
+    .phase-name { font-size: 12px; }
+    .phase-evidence { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .note-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .note-card {
+      padding: 15px;
+      border: 1px solid var(--line-soft);
+      border-left: 3px solid var(--cyan);
+      border-radius: 11px;
+      background: var(--surface-2);
+    }
+    .note-card.WARNING { border-left-color: var(--amber); }
+    .note-card.CAUTION { border-left-color: var(--red); }
+    .note-card.TIP { border-left-color: var(--lime); }
+    .note-card.IMPORTANT { border-left-color: var(--violet); }
+    .note-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+    .note-card strong { font-size: 11px; letter-spacing: .07em; }
+    .note-card p { margin: 0; color: var(--muted); font-size: 12px; }
+    .note-path { max-width: 56%; overflow: hidden; color: var(--faint); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 14px;
+    }
+    .field {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+      color: var(--text);
+      background: #09101a;
+    }
+    .field:focus { border-color: var(--cyan-2); box-shadow: 0 0 0 3px rgb(56 215 255 / 8%); }
+    .toolbar .field { width: auto; min-width: 170px; flex: 1; }
+    select.field { flex: 0 1 190px; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line-soft); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: top; }
+    th { position: sticky; z-index: 2; top: 0; color: var(--muted); background: var(--surface-2); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: rgb(56 215 255 / 3%); }
+    .path-button, .inline-link {
+      padding: 0;
+      border: 0;
+      color: var(--cyan);
+      background: transparent;
+      text-align: left;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+      font: inherit;
+    }
+    .empty-inline { padding: 18px 4px; color: var(--faint); font-size: 12px; }
+
+    .issue-list { display: grid; gap: 9px; }
+    .issue {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 11px;
+      align-items: start;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 11px;
+      background: var(--surface-2);
+    }
+    .severity { width: 9px; height: 9px; margin-top: 5px; border-radius: 50%; background: var(--blue); }
+    .severity.high { background: var(--red); box-shadow: 0 0 9px rgb(255 107 122 / 40%); }
+    .severity.medium { background: var(--amber); }
+    .severity.low { background: var(--cyan); }
+    .issue strong { display: block; font-size: 12px; }
+    .issue p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+
+    .qa-grid { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; }
+    .qa-card { padding: 14px; border: 1px solid var(--line-soft); border-radius: 11px; background: var(--surface-2); }
+    .qa-card strong { display: block; font-size: 12px; }
+    .qa-card span { color: var(--muted); font-size: 11px; }
+
+    .graph-wrap { overflow: auto; min-height: 330px; border: 1px solid var(--line-soft); border-radius: 12px; background: #080e17; }
+    .graph-wrap svg { display: block; min-width: 760px; width: 100%; height: auto; }
+
+    .explorer-layout { display: grid; grid-template-columns: minmax(300px, 430px) minmax(0, 1fr); gap: 14px; min-height: 65vh; }
+    .tree-actions { display: flex; flex: 0 0 auto; gap: 7px; }
+    .tree-actions .button { min-height: 42px; padding-inline: 11px; font-size: 11px; }
+    .file-list {
+      max-height: 72vh;
+      overflow: auto;
+      padding: 5px 0;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      background: var(--surface);
+      scrollbar-gutter: stable;
+    }
+    .tree-row {
+      --tree-depth: 1;
+      width: 100%;
+      min-height: 43px;
+      padding: 7px 10px 7px calc(9px + (var(--tree-depth) - 1) * 18px);
+      border: 0;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    .tree-row:hover, .tree-row:focus-visible, .file-row.active { background: var(--surface-2); }
+    .tree-row:focus-visible { position: relative; z-index: 2; outline: 2px solid var(--cyan-2); outline-offset: -2px; }
+    .tree-directory {
+      display: grid;
+      grid-template-columns: 14px 18px minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+      border-bottom: 1px solid rgb(27 41 58 / 64%);
+    }
+    .tree-chevron {
+      color: var(--faint);
+      font-size: 16px;
+      line-height: 1;
+      transform: rotate(0deg);
+      transition: transform .16s ease;
+    }
+    .tree-directory[aria-expanded="true"] .tree-chevron { color: var(--cyan); transform: rotate(90deg); }
+    .tree-folder {
+      position: relative;
+      width: 17px;
+      height: 12px;
+      border: 1px solid #66839d;
+      border-radius: 3px;
+      background: rgb(102 131 157 / 12%);
+    }
+    .tree-folder::before {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 3px;
+      top: -4px;
+      left: 1px;
+      border: 1px solid #66839d;
+      border-bottom: 0;
+      border-radius: 3px 3px 0 0;
+      background: var(--surface);
+    }
+    .tree-directory[aria-expanded="true"] .tree-folder { border-color: var(--cyan-2); background: rgb(56 215 255 / 10%); }
+    .tree-directory-name { min-width: 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 650; }
+    .tree-directory-meta { color: var(--faint); font-size: 9px; white-space: nowrap; }
+    .file-row {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border-bottom: 1px solid rgb(27 41 58 / 46%);
+    }
+    .file-glyph {
+      position: relative;
+      width: 14px;
+      height: 17px;
+      margin-top: 2px;
+      border: 1px solid #58728b;
+      border-radius: 2px;
+      background: rgb(88 114 139 / 8%);
+    }
+    .file-glyph::after {
+      content: "";
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      top: -1px;
+      right: -1px;
+      border-bottom: 1px solid #58728b;
+      border-left: 1px solid #58728b;
+      background: var(--surface);
+    }
+    .file-row.active .file-glyph { border-color: var(--cyan); background: rgb(56 215 255 / 11%); }
+    .file-copy { min-width: 0; }
+    .file-name-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; min-width: 0; }
+    .file-stem { min-width: 0; overflow-wrap: anywhere; color: var(--text); font-size: 11px; font-weight: 620; }
+    .file-extension {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      min-height: 18px;
+      padding: 1px 5px;
+      border: 1px solid rgb(56 215 255 / 18%);
+      border-radius: 999px;
+      color: var(--cyan);
+      background: rgb(56 215 255 / 5%);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .file-extension.none { color: var(--faint); border-color: var(--line); background: transparent; font-weight: 550; }
+    .file-meta { display: block; margin-top: 2px; color: var(--faint); font-size: 9px; line-height: 1.35; }
+    .tree-empty { min-height: 180px; display: grid; place-items: center; padding: 20px; color: var(--faint); text-align: center; }
+    .preview {
+      min-width: 0;
+      max-height: 72vh;
+      overflow: auto;
+      padding: 20px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+    .preview-empty { min-height: 40vh; display: grid; place-items: center; color: var(--faint); text-align: center; }
+    .preview-head { position: sticky; z-index: 5; top: -20px; margin: -20px -20px 18px; padding: 14px 18px; border-bottom: 1px solid var(--line-soft); background: rgb(13 20 32 / 96%); backdrop-filter: blur(10px); }
+    .preview-head strong { display: block; overflow-wrap: anywhere; }
+    .preview-path { display: block; margin-top: 3px; overflow-wrap: anywhere; font-size: 10px; }
+    .preview-tabs { display: flex; gap: 6px; margin-top: 10px; }
+    .tab-btn { padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; font-size: 10px; }
+    .tab-btn.active { color: var(--text); border-color: var(--cyan-2); background: rgb(56 215 255 / 8%); }
+    .raw-content { margin: 0; color: #cae4f8; font-size: 11px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .markdown { color: #dbe8f5; overflow-wrap: anywhere; }
+    .markdown h1, .markdown h2, .markdown h3 { margin: 1.4em 0 .55em; line-height: 1.2; }
+    .markdown h1:first-child, .markdown h2:first-child { margin-top: 0; }
+    .markdown h1 { font-size: 25px; }
+    .markdown h2 { font-size: 20px; }
+    .markdown h3 { font-size: 16px; }
+    .markdown p, .markdown li { color: #b8cadb; }
+    .markdown code { padding: 2px 5px; border-radius: 5px; background: #080d15; color: #bcecff; }
+    .markdown pre { overflow: auto; padding: 13px; border: 1px solid var(--line-soft); border-radius: 9px; background: #060a10; }
+    .markdown pre code { padding: 0; background: transparent; }
+    .markdown blockquote { margin: 12px 0; padding: 1px 13px; border-left: 3px solid var(--cyan-2); background: rgb(56 215 255 / 4%); }
+    .markdown table { display: block; overflow: auto; }
+    .markdown img { max-width: 100%; }
+    .metadata-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; font-size: 11px; }
+    .metadata-grid dt { color: var(--muted); }
+    .metadata-grid dd { margin: 0; overflow-wrap: anywhere; }
+    .binary-preview { min-height: 36vh; display: grid; place-items: center; gap: 14px; color: var(--muted); text-align: center; }
+    .binary-preview img { display: block; max-width: 100%; max-height: 58vh; border-radius: 10px; }
+
+    .loading-overlay {
+      position: fixed;
+      z-index: 90;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgb(4 7 12 / 78%);
+      backdrop-filter: blur(8px);
+    }
+    .loading-overlay.active { display: grid; }
+    .loading-card { width: min(460px, 100%); padding: 24px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); box-shadow: var(--shadow); }
+    .loading-card h2 { margin: 0 0 7px; font-size: 18px; }
+    .loading-card p { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+
+    dialog {
+      width: min(640px, calc(100% - 24px));
+      max-height: calc(100vh - 24px);
+      padding: 0;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 19px;
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    dialog::backdrop { background: rgb(2 5 9 / 75%); backdrop-filter: blur(7px); }
+    .dialog-head { padding: 20px 22px 12px; }
+    .dialog-head h2 { margin: 0; }
+    .dialog-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .dialog-body { padding: 10px 22px 22px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-field { display: grid; gap: 6px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: var(--muted); font-size: 11px; }
+    .security-callout { margin: 13px 0; padding: 11px; border: 1px solid rgb(184 243 106 / 20%); border-radius: 10px; color: #cce9b1; background: rgb(184 243 106 / 5%); font-size: 11px; }
+    .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .source-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .choice-card { padding: 15px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); }
+    .choice-card strong { display: block; margin-bottom: 4px; }
+    .choice-card p { min-height: 48px; margin: 0 0 12px; color: var(--muted); font-size: 11px; }
+
+    .toast {
+      position: fixed;
+      z-index: 120;
+      right: 18px;
+      bottom: calc(18px + var(--safe-bottom));
+      max-width: min(430px, calc(100% - 36px));
+      padding: 12px 15px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface-3);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: .2s ease;
+      font-size: 12px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .error-box { margin: 14px 0; padding: 12px; border: 1px solid rgb(255 107 122 / 28%); border-radius: 10px; color: #ffd1d7; background: rgb(255 107 122 / 6%); font-size: 12px; }
+
+    @media (max-width: 1180px) {
+      .kpi-grid { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
+      .qa-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+    }
+    @media (max-width: 860px) {
+      :root { --nav-width: 0px; --top-height: 68px; }
+      .sidebar {
+        inset: auto 0 0;
+        width: auto;
+        height: calc(67px + var(--safe-bottom));
+        padding: 7px 8px var(--safe-bottom);
+        border-top: 1px solid var(--line);
+        border-right: 0;
+        display: block;
+      }
+      .brand, .sidebar-foot { display: none; }
+      .nav-list { grid-template-columns: repeat(6, 1fr); gap: 2px; }
+      .nav-btn { min-height: 52px; padding: 5px 2px; justify-content: center; flex-direction: column; gap: 1px; font-size: 9px; text-align: center; }
+      .nav-icon { width: auto; font-size: 9px; }
+      .workspace { margin-left: 0; }
+      main { padding-bottom: calc(92px + var(--safe-bottom)); }
+      .topbar { padding-inline: 14px; }
+      .top-actions .button-label { display: none; }
+      .grid.two, .grid.three, .hero-grid, .explorer-layout { grid-template-columns: 1fr; }
+      .note-grid { grid-template-columns: 1fr; }
+      .explorer-layout { min-height: 0; }
+      .file-list { max-height: 42vh; }
+      .preview { max-height: none; }
+      .tree-actions { width: 100%; }
+      .tree-actions .button { min-height: 44px; flex: 1; }
+    }
+    @media (max-width: 570px) {
+      body { font-size: 14px; }
+      .view-head { align-items: start; flex-direction: column; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .kpi { padding: 13px; }
+      .donut-wrap { grid-template-columns: 1fr; }
+      .phase-card { grid-template-columns: 1fr auto; }
+      .phase-evidence { grid-column: 1 / -1; }
+      .qa-grid { grid-template-columns: 1fr 1fr; }
+      .form-grid, .source-choice { grid-template-columns: 1fr; }
+      .form-field.full { grid-column: auto; }
+      .dialog-actions { flex-direction: column-reverse; }
+      .dialog-actions .button { width: 100%; }
+      .top-actions { gap: 5px; }
+      .button { padding-inline: 10px; }
+      .toolbar .field { min-width: 100%; flex-basis: 100%; }
+      .tree-row { min-height: 46px; padding-right: 8px; }
+      .tree-directory-meta { font-size: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Hoppa till innehåll</a>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Dashboardnavigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span><strong id="appBrandName">Repository Intelligence Dashboard</strong><small>Live · read only</small></span>
+      </div>
+      <nav class="nav-list" role="tablist" aria-label="Vyer">
+        <button class="nav-btn" type="button" role="tab" aria-selected="true" data-nav="overview"><span class="nav-icon">OV</span>Översikt</button>
+        <button class="nav-btn" type="button" role="tab" aria-selected="false" data-nav="content"><span class="nav-icon">CT</span>Content</button>
+        <button class="nav-btn" type="button" role="tab" aria-selected="false" data-nav="quality"><span class="nav-icon">QA</span>Kvalitet</button>
+        <button class="nav-btn" type="button" role="tab" aria-selected="false" data-nav="sources"><span class="nav-icon">SR</span>Källor</button>
+        <button class="nav-btn" type="button" role="tab" aria-selected="false" data-nav="explorer"><span class="nav-icon">FX</span>Utforskare</button>
+        <button class="nav-btn" type="button" role="tab" aria-selected="false" data-nav="notes"><span class="nav-icon">NT</span>Notiser</button>
+      </nav>
+      <div class="sidebar-foot">Inga repositoryposter är inbäddade. Allt räknas från den källa som laddas i denna session.</div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="live-identity">
+          <h1 id="repoTitle">Ingen livekälla ansluten</h1>
+          <div class="live-meta"><span class="live-dot" id="liveDot"></span><span id="liveText">Välj GitHub eller lokal mapp</span></div>
+        </div>
+        <div class="top-actions">
+          <button class="button icon-button" id="refreshButton" type="button" title="Uppdatera livekälla" aria-label="Uppdatera livekälla" disabled>↻</button>
+          <button class="button" id="connectButton" type="button"><span class="button-label">Byt källa</span><span aria-hidden="true"> ⌁</span></button>
+        </div>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section id="emptyState" class="connect-hero">
+          <div class="connect-card">
+            <div class="eyebrow mono">RUNTIME-DERIVED · ZERO SNAPSHOT PAYLOAD</div>
+            <h2>Se repot som det faktiskt är. Nu.</h2>
+            <p>Dashboarden läser filträdet och filernas bytes vid körning. Statistik, status, kvalitetsgrindar, länkar, notiser och diagram räknas om från samma in-memory-modell — aldrig från inbakade siffror.</p>
+            <div class="connect-actions">
+              <button class="button primary" type="button" data-open-connect>Anslut livekälla</button>
+              <button class="button" type="button" data-open-local>Öppna lokal repo-root</button>
+            </div>
+            <div class="truth-note">Read only. Ingen fil skrivs, ingen token lagras, och ett högt score är diagnostik — inte automatiskt bevis på accepterad sanning.</div>
+          </div>
+        </section>
+
+        <section class="view" data-view="overview" aria-labelledby="overviewTitle">
+          <div class="view-head"><div><h2 id="overviewTitle">Liveöversikt</h2><p>Exakt repositoryträd, innehållsprofil och evidensbaserade diagnoser för laddad commit eller lokal arbetsyta.</p></div><span class="badge info" id="sourceBadge">Ej laddad</span></div>
+          <div class="hero-strip"><div class="hero-grid"><div><p class="hero-kicker">Aktuell evidensgräns</p><h3 class="hero-title" id="heroRepo">—</h3><p class="hero-sub" id="heroSummary">Anslut en källa för att analysera repot.</p></div><div class="head-box"><small>Exakt head / lokal revision</small><code id="heroHead">—</code><small id="heroChecked">—</small></div></div></div>
+          <div class="kpi-grid" id="overviewKpis"></div>
+          <div class="grid two">
+            <article class="panel"><div class="panel-head"><div><h3>Hälsa & kvalitet</h3><p>Transparenta, filhärledda indikatorer.</p></div><span class="badge" id="overallBadge">—</span></div><div class="score-list" id="scoreList"></div></article>
+            <article class="panel"><div class="panel-head"><div><h3>Filformat</h3><p>Andel av aktuell repositoryyta.</p></div><span class="badge" id="textCoverageBadge">—</span></div><div class="donut-wrap"><div class="donut" id="typeDonut"><div class="donut-center" id="typeDonutCenter">—</div></div><div class="legend" id="typeLegend"></div></div></article>
+          </div>
+          <div class="grid two">
+            <article class="panel"><div class="panel-head"><div><h3>Statusprogression</h3><p>Härledd från liveinnehållet i STATUS.md; historisk gräns visas separat.</p></div><span class="badge" id="statusFreshnessBadge">—</span></div><div class="phase-list" id="phaseList"></div></article>
+            <article class="panel"><div class="panel-head"><div><h3>Tyngsta områden</h3><p>Bytes per toppkatalog från aktuell tree.</p></div></div><div class="bar-list" id="directoryBars"></div></article>
+          </div>
+          <article class="panel"><div class="panel-head"><div><h3>Highlighted notes</h3><p>NOTE, TIP, IMPORTANT, WARNING och CAUTION hämtade direkt ur Markdown.</p></div><button class="button ghost" type="button" data-jump="notes">Visa alla</button></div><div class="note-grid" id="overviewNotes"></div></article>
+        </section>
+
+        <section class="view" data-view="content" aria-labelledby="contentTitle">
+          <div class="view-head"><div><h2 id="contentTitle">Content intelligence</h2><p>Filer, bytes, rader, dokumentklasser, livscykler och katalogernas observationsgränser.</p></div><span class="badge" id="contentCoverageBadge">—</span></div>
+          <div class="kpi-grid" id="contentKpis"></div>
+          <div class="grid two">
+            <article class="panel"><div class="panel-head"><div><h3>Repositoryområden</h3><p>Filantal och storlek per toppkatalog.</p></div></div><div class="bar-list" id="areaBars"></div></article>
+            <article class="panel"><div class="panel-head"><div><h3>Governanceklasser</h3><p>Top-level frontmatter i aktuella dokument.</p></div></div><div class="donut-wrap"><div class="donut" id="recordDonut"><div class="donut-center" id="recordDonutCenter">—</div></div><div class="legend" id="recordLegend"></div></div></article>
+          </div>
+          <article class="panel"><div class="panel-head"><div><h3>Governed records</h3><p>Metadata presenteras som observation, inte automatisk auktoritet.</p></div></div><div class="table-wrap"><table><thead><tr><th>Record</th><th>Klass</th><th>Status</th><th>Confidence</th><th>Observerad</th><th>Path</th></tr></thead><tbody id="recordTable"></tbody></table></div></article>
+          <article class="panel"><div class="panel-head"><div><h3>Governed inbox</h3><p>Manifestregistrerade payloads och livscykler från exakt laddade repositorybytes.</p></div><span class="badge" id="inboxBadge">—</span></div><div class="table-wrap"><table><thead><tr><th>Intake</th><th>State</th><th>Kind</th><th>Reuse</th><th>Risk flags</th><th>Path</th></tr></thead><tbody id="inboxTable"></tbody></table></div></article>
+          <article class="panel"><div class="panel-head"><div><h3>Alla repositoryområden</h3><p>Liveinventering; inga katalograder här är inbakade i HTML-filen.</p></div></div><div class="table-wrap"><table><thead><tr><th>Område</th><th>Filer</th><th>Bytes</th><th>Rader</th><th>Andel</th></tr></thead><tbody id="areaTable"></tbody></table></div></article>
+        </section>
+
+        <section class="view" data-view="quality" aria-labelledby="qualityTitle">
+          <div class="view-head"><div><h2 id="qualityTitle">Kvalitet & QA</h2><p>Strukturella kontroller mot exakt laddade filer. Plattformskontroller och externa länkar är uttryckligen utanför denna filanalys.</p></div><span class="badge" id="qaBadge">—</span></div>
+          <div class="qa-grid" id="qaCards"></div>
+          <div class="grid two">
+            <article class="panel"><div class="panel-head"><div><h3>Diagnostiska scores</h3><p>Formler och nämnare visas per rad.</p></div></div><div class="score-list" id="qualityScores"></div></article>
+            <article class="panel"><div class="panel-head"><div><h3>Evidensgräns</h3><p>Vad dashboarden faktiskt kan och inte kan bevisa.</p></div></div><div id="evidenceBoundary"></div></article>
+          </div>
+          <article class="panel"><div class="panel-head"><div><h3>Fynd</h3><p>Värden som liknar credentials visas aldrig; endast mönstertyp, fil och rad.</p></div><span class="badge" id="issueCountBadge">—</span></div><div class="issue-list" id="issueList"></div></article>
+        </section>
+
+        <section class="view" data-view="sources" aria-labelledby="sourcesTitle">
+          <div class="view-head"><div><h2 id="sourcesTitle">Källor & relationer</h2><p>Provider-, artifact- och verifieringsrelationer härledda från aktuella JSONL-rader.</p></div><span class="badge" id="sourceRelationBadge">—</span></div>
+          <div class="kpi-grid" id="sourceKpis"></div>
+          <div class="grid two">
+            <article class="panel"><div class="panel-head"><div><h3>Providers</h3><p>Relationer per provider.</p></div></div><div class="bar-list" id="providerBars"></div></article>
+            <article class="panel"><div class="panel-head"><div><h3>Verifieringsläge</h3><p>Separat från content equivalence.</p></div></div><div class="donut-wrap"><div class="donut" id="verificationDonut"><div class="donut-center" id="verificationDonutCenter">—</div></div><div class="legend" id="verificationLegend"></div></div></article>
+          </div>
+          <article class="panel"><div class="panel-head"><div><h3>Artifact → provider-diagram</h3><p>Bipartit diagram byggt från live-relationer. Linjer innebär relation — inte licens, färskhet eller auktoritet.</p></div></div><div class="graph-wrap" id="sourceGraph"></div></article>
+          <article class="panel"><div class="panel-head"><div><h3>Relationsregister</h3><p>Alla identifierade source-relation-rader i laddad tree.</p></div></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Artifact</th><th>Provider</th><th>Relation</th><th>Identity</th><th>Equivalence</th></tr></thead><tbody id="relationTable"></tbody></table></div></article>
+        </section>
+
+        <section class="view" data-view="explorer" aria-labelledby="explorerTitle">
+          <div class="view-head"><div><h2 id="explorerTitle">Filträd & content explorer</h2><p>Fäll kataloger, sök i laddade textbytes och öppna säker preview, raw eller metadata från samma live-modell.</p></div><span class="badge" id="explorerCountBadge">—</span></div>
+          <div class="toolbar">
+            <input class="field" id="fileSearch" type="search" placeholder="Sök path eller filinnehåll…" autocomplete="off">
+            <select class="field" id="typeFilter" aria-label="Filändelse"><option value="all">Alla filändelser</option></select>
+            <select class="field" id="areaFilter" aria-label="Repositoryområde"><option value="all">Alla områden</option></select>
+            <div class="tree-actions" aria-label="Filträdskontroller">
+              <button class="button ghost" id="expandAllDirectories" type="button">Fäll ut alla</button>
+              <button class="button ghost" id="collapseAllDirectories" type="button">Fäll ihop alla</button>
+            </div>
+          </div>
+          <div class="explorer-layout"><div class="file-list" id="fileList" role="tree" aria-label="Repositoryns filträd"></div><article class="preview" id="filePreview"><div class="preview-empty">Välj en fil i trädet för att öppna exakt laddat innehåll.</div></article></div>
+        </section>
+
+        <section class="view" data-view="notes" aria-labelledby="notesTitle">
+          <div class="view-head"><div><h2 id="notesTitle">Notiser & beslutssignaler</h2><p>Admonitions och handlingsorienterade avsnitt extraherade ur aktuella Markdownfiler.</p></div><span class="badge" id="noteCountBadge">—</span></div>
+          <div class="toolbar"><input class="field" id="noteSearch" type="search" placeholder="Sök notis eller path…" autocomplete="off"><select class="field" id="noteFilter" aria-label="Notistyp"><option value="all">Alla typer</option><option>CAUTION</option><option>WARNING</option><option>IMPORTANT</option><option>NOTE</option><option>TIP</option><option>ACTION</option></select></div>
+          <div class="note-grid" id="allNotes"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="connectDialog" aria-labelledby="connectTitle">
+    <div class="dialog-head"><h2 id="connectTitle">Anslut livekälla</h2><p>GitHub-läge följer en exakt commit. Lokalt läge läser aktuell arbetsyta och exkluderar endast tekniska kataloger som `.git` och `node_modules`.</p></div>
+    <div class="dialog-body">
+      <div class="source-choice">
+        <div class="choice-card"><strong>GitHub Live</strong><p>Exakt branch-head, rekursiv tree och samtliga blobbar via read-only API.</p><button class="button primary" type="button" id="showGithubForm">Konfigurera GitHub</button></div>
+        <div class="choice-card"><strong>Lokal repo-root</strong><p>Direkt filläsning. Ingen nätverkstoken behövs; Git-metadata exkluderas.</p><button class="button" type="button" id="localFolderButton">Välj mapp</button></div>
+      </div>
+      <form id="githubForm" class="hidden">
+        <div class="form-grid">
+          <div class="form-field"><label for="ownerInput">Owner</label><input class="field" id="ownerInput" name="owner" required value="" placeholder="octocat" autocomplete="off"></div>
+          <div class="form-field"><label for="repoInput">Repository</label><input class="field" id="repoInput" name="repo" required value="" placeholder="hello-world" autocomplete="off"></div>
+          <div class="form-field full"><label for="refInput">Branch, tag eller SHA</label><input class="field mono" id="refInput" name="ref" required value="main" autocomplete="off"></div>
+          <div class="form-field full"><label for="tokenInput">Fine-grained read-only GitHub-token <span class="faint">(valfri för publika repos, normalt nödvändig för privata)</span></label><input class="field mono" id="tokenInput" name="token" type="password" autocomplete="off" spellcheck="false" placeholder="Hålls endast i denna fliks minne"></div>
+        </div>
+        <div class="security-callout"><strong>Ingen tokenlagring.</strong> Värdet skrivs aldrig till URL, DOM efter anslutning, localStorage, IndexedDB, logg, fil eller export. Det försvinner när fliken stängs.</div>
+        <div id="connectError" class="error-box hidden" role="alert"></div>
+        <div class="dialog-actions"><button class="button ghost" type="button" data-dialog-close>Avbryt</button><button class="button primary" type="submit">Läs repot</button></div>
+      </form>
+      <div class="dialog-actions" id="choiceActions"><button class="button ghost" type="button" data-dialog-close>Stäng</button></div>
+    </div>
+  </dialog>
+
+  <input class="hidden" id="folderInput" type="file" webkitdirectory multiple aria-hidden="true">
+
+  <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite">
+    <div class="loading-card"><h2 id="loadingTitle">Läser repository…</h2><p id="loadingText">Förbereder exakt evidensgräns.</p><div class="progress"><i id="loadingBar"></i></div></div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const INSTALL_CONFIG = Object.freeze(/*__RID_INSTALL_CONFIG__*/{"appName":"Repository Intelligence Dashboard","owner":"","repo":"","ref":"main"});
+    const DEFAULT_SOURCE = Object.freeze({ owner: INSTALL_CONFIG.owner, repo: INSTALL_CONFIG.repo, ref: INSTALL_CONFIG.ref });
+    const POLL_INTERVAL_MS = 60_000;
+    const API_VERSION = "2022-11-28";
+    const EXCLUDED_LOCAL_DIRS = new Set([".git", "node_modules", "dist", "build", ".next", ".cache"]);
+    const REQUIRED_ROOTS = ["README.md"];
+    const RECORD_REQUIRED = ["schema_version", "document_type", "record_type", "record_id", "title", "created_at", "timezone", "scope", "source", "source_context", "access_mode", "mutation_performed", "confidence", "status"];
+    const RECORD_CLASSES = new Set(["PROPOSAL", "LOG", "BASELINE", "DECISION", "INCIDENT", "RUNBOOK", "HANDOFF", "ARCHIVE"]);
+    const COLORS = ["#38d7ff", "#a98bff", "#b8f36a", "#ffbf5a", "#6aa8ff", "#ff6b7a", "#57c7a0", "#d882ff", "#84a7c7", "#7bdcf2"];
+    const SECRET_PATTERNS = [
+      { label: "Private key header", regex: new RegExp("-----BE" + "GIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----", "g") },
+      { label: "GitHub classic token pattern", regex: new RegExp("\\bgh" + "p_[A-Za-z0-9]{30,}\\b", "g") },
+      { label: "GitHub fine-grained token pattern", regex: new RegExp("\\bgithub_" + "pat_[A-Za-z0-9_]{20,}\\b", "g") },
+      { label: "OpenAI-style secret pattern", regex: new RegExp("\\bsk" + "-[A-Za-z0-9]{20,}\\b", "g") },
+      { label: "AWS access key pattern", regex: new RegExp("\\bAK" + "IA[0-9A-Z]{16}\\b", "g") },
+      { label: "Bearer credential pattern", regex: new RegExp("\\bBear" + "er\\s+[A-Za-z0-9._~+/=-]{20,}\\b", "g") }
+    ];
+
+    const state = {
+      source: null,
+      token: "",
+      directoryHandle: null,
+      fallbackFiles: null,
+      files: [],
+      analysis: null,
+      headSha: null,
+      treeSha: null,
+      repositoryId: null,
+      loadedAt: null,
+      lastCheckedAt: null,
+      rateRemaining: null,
+      pollTimer: null,
+      busy: false,
+      activeView: "overview",
+      selectedPath: null,
+      expandedDirectories: new Set(),
+      filterCollapsedDirectories: new Set(),
+      previewMode: "preview",
+      previewObjectUrl: null
+    };
+
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+    const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, value));
+    const round = (value) => Number.isFinite(value) ? Math.round(value) : null;
+    const sum = (items) => items.reduce((total, value) => total + (Number(value) || 0), 0);
+    const average = (items) => {
+      const values = items.filter(Number.isFinite);
+      return values.length ? sum(values) / values.length : null;
+    };
+    const formatNumber = (value) => new Intl.NumberFormat("sv-SE").format(Number(value) || 0);
+    const formatBytes = (bytes) => {
+      const value = Number(bytes) || 0;
+      if (value < 1024) return `${value} B`;
+      const units = ["kB", "MB", "GB"];
+      let scaled = value / 1024;
+      let index = 0;
+      while (scaled >= 1024 && index < units.length - 1) { scaled /= 1024; index += 1; }
+      return `${scaled >= 10 ? scaled.toFixed(1) : scaled.toFixed(2)} ${units[index]}`;
+    };
+    const formatDateTime = (value) => {
+      if (!value) return "—";
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat("sv-SE", { dateStyle: "medium", timeStyle: "medium" }).format(date);
+    };
+    const shortSha = (sha) => sha && /^[0-9a-f]{40}$/i.test(sha) ? `${sha.slice(0, 10)}…` : (sha || "—");
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+    const cssEscape = (value) => window.CSS?.escape ? window.CSS.escape(value) : String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+    const topArea = (path) => path.includes("/") ? path.split("/")[0] : "(root)";
+    const extensionOf = (path) => {
+      const name = path.split("/").pop() || path;
+      if (!name.includes(".") || name.startsWith(".") && name.indexOf(".", 1) < 0) return "[no extension]";
+      const lower = name.toLowerCase();
+      if (lower.endsWith(".schema.json")) return ".schema.json";
+      return `.${lower.split(".").pop()}`;
+    };
+    const pathCompare = (left, right) => String(left).localeCompare(String(right), "sv", { numeric: true, sensitivity: "base" });
+    const fileNameParts = (file) => {
+      const fullName = String(file?.path || "").split("/").pop() || String(file?.path || "");
+      const extension = file?.extension || extensionOf(fullName);
+      const hasExtension = extension !== "[no extension]" && fullName.toLocaleLowerCase("sv").endsWith(extension.toLocaleLowerCase("sv"));
+      return {
+        fullName,
+        stem: hasExtension ? fullName.slice(0, -extension.length) : fullName,
+        extension,
+        extensionLabel: hasExtension ? extension : "utan ändelse"
+      };
+    };
+    function buildFileTree(files) {
+      const root = { name: "Repository root", path: "", directoryMap: new Map(), files: [] };
+      for (const file of files || []) {
+        const segments = String(file?.path || "").split("/").filter(Boolean);
+        if (!segments.length) continue;
+        let node = root;
+        let currentPath = "";
+        for (const segment of segments.slice(0, -1)) {
+          currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+          if (!node.directoryMap.has(segment)) node.directoryMap.set(segment, { name: segment, path: currentPath, directoryMap: new Map(), files: [] });
+          node = node.directoryMap.get(segment);
+        }
+        node.files.push(file);
+      }
+      const finalize = (node) => {
+        const directories = [...node.directoryMap.values()].map(finalize).sort((left, right) => pathCompare(left.name, right.name));
+        const directFiles = [...node.files].sort((left, right) => pathCompare(fileNameParts(left).fullName, fileNameParts(right).fullName));
+        return {
+          name: node.name,
+          path: node.path,
+          directories,
+          files: directFiles,
+          fileCount: directFiles.length + sum(directories.map((directory) => directory.fileCount)),
+          bytes: sum(directFiles.map((file) => file.size)) + sum(directories.map((directory) => directory.bytes))
+        };
+      };
+      return finalize(root);
+    }
+    function directoryPaths(tree) {
+      const paths = [];
+      const visit = (node) => {
+        for (const directory of node?.directories || []) {
+          paths.push(directory.path);
+          visit(directory);
+        }
+      };
+      visit(tree);
+      return paths;
+    }
+    const isTextExtension = (extension) => new Set([".md", ".txt", ".csv", ".json", ".jsonl", ".yml", ".yaml", ".html", ".css", ".js", ".mjs", ".ts", ".tsx", ".xml", ".svg", ".toml", ".ini", ".sh", "[no extension]"]).has(extension);
+    const severityRank = (severity) => ({ high: 0, medium: 1, low: 2, info: 3 })[severity] ?? 4;
+
+    function setBusy(busy, title = "Läser repository…", detail = "Förbereder exakt evidensgräns.", progress = 0) {
+      state.busy = busy;
+      $("#loadingOverlay").classList.toggle("active", busy);
+      $("#loadingTitle").textContent = title;
+      $("#loadingText").textContent = detail;
+      $("#loadingBar").style.width = `${clamp(progress)}%`;
+      $("#refreshButton").disabled = busy || !state.source;
+      $("#liveDot").classList.toggle("loading", busy);
+    }
+
+    function updateProgress(done, total, label) {
+      const progress = total ? done / total * 100 : 0;
+      $("#loadingText").textContent = `${label} · ${formatNumber(done)} / ${formatNumber(total)}`;
+      $("#loadingBar").style.width = `${clamp(progress)}%`;
+    }
+
+    let toastTimer = null;
+    function showToast(message) {
+      const toast = $("#toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 3400);
+    }
+
+    function safeErrorMessage(error) {
+      const raw = error instanceof Error ? error.message : String(error);
+      return raw.replace(/(token|authorization|bearer)\s*[:=]\s*\S+/gi, "$1 [REDACTED]").slice(0, 420);
+    }
+
+    async function githubApi(path, token = state.token) {
+      const headers = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": API_VERSION };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const response = await fetch(`https://api.github.com${path}`, { method: "GET", headers, credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer" });
+      const remaining = response.headers.get("x-ratelimit-remaining");
+      state.rateRemaining = remaining === null ? null : Number(remaining);
+      if (!response.ok) {
+        let message = response.statusText;
+        try { message = (await response.json()).message || message; } catch { /* response may not be JSON */ }
+        if (response.status === 401 || response.status === 404) message = "Källan kunde inte läsas. För ett privat repo krävs normalt en giltig fine-grained read-only-token.";
+        if (response.status === 403 && remaining === "0") message = "GitHub API-rategränsen är nådd. Vänta eller använd en read-only-token med högre gräns.";
+        throw new Error(`GitHub ${response.status}: ${message}`);
+      }
+      return response.json();
+    }
+
+    async function resolveGithubCommit(source, token = state.token) {
+      const owner = encodeURIComponent(source.owner);
+      const repo = encodeURIComponent(source.repo);
+      const ref = encodeURIComponent(source.ref);
+      const commit = await githubApi(`/repos/${owner}/${repo}/commits/${ref}`, token);
+      if (!commit?.sha || !commit?.commit?.tree?.sha) throw new Error("GitHub returnerade ingen verifierbar commit/tree-identitet.");
+      return { headSha: commit.sha, treeSha: commit.commit.tree.sha, repository: commit.repository || null };
+    }
+
+    async function fetchGithubRepositoryMeta(source, token = state.token) {
+      const owner = encodeURIComponent(source.owner);
+      const repo = encodeURIComponent(source.repo);
+      return githubApi(`/repos/${owner}/${repo}`, token);
+    }
+
+    async function fetchTreeRecursive(source, treeSha, token = state.token) {
+      const owner = encodeURIComponent(source.owner);
+      const repo = encodeURIComponent(source.repo);
+      const initial = await githubApi(`/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`, token);
+      if (!initial.truncated) return initial.tree || [];
+      const entries = [];
+      async function walk(sha, prefix = "") {
+        const tree = await githubApi(`/repos/${owner}/${repo}/git/trees/${sha}`, token);
+        for (const entry of tree.tree || []) {
+          const path = prefix ? `${prefix}/${entry.path}` : entry.path;
+          if (entry.type === "tree") await walk(entry.sha, path);
+          else entries.push({ ...entry, path });
+        }
+      }
+      await walk(treeSha);
+      return entries;
+    }
+
+    function decodeBase64Bytes(content) {
+      const binary = atob(String(content || "").replace(/\s+/g, ""));
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+      return bytes;
+    }
+
+    function bytesAreBinary(bytes, extension) {
+      if (isTextExtension(extension)) return false;
+      const sampleLength = Math.min(bytes.length, 8192);
+      for (let index = 0; index < sampleLength; index += 1) if (bytes[index] === 0) return true;
+      return false;
+    }
+
+    function textLineCount(text) {
+      if (!text) return 0;
+      const normalized = String(text).replace(/\r\n/g, "\n");
+      const withoutFinalNewline = normalized.endsWith("\n") ? normalized.slice(0, -1) : normalized;
+      return withoutFinalNewline ? withoutFinalNewline.split("\n").length : 0;
+    }
+
+    async function mapLimit(items, limit, mapper, progressLabel) {
+      const results = new Array(items.length);
+      let cursor = 0;
+      let done = 0;
+      async function worker() {
+        while (true) {
+          const index = cursor;
+          cursor += 1;
+          if (index >= items.length) return;
+          results[index] = await mapper(items[index], index);
+          done += 1;
+          updateProgress(done, items.length, progressLabel);
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(limit, items.length || 1) }, worker));
+      return results;
+    }
+
+    async function fetchGithubBlob(source, entry, token = state.token) {
+      const owner = encodeURIComponent(source.owner);
+      const repo = encodeURIComponent(source.repo);
+      if (entry.type !== "blob") {
+        return { path: entry.path, sha: entry.sha, size: entry.size || 0, extension: extensionOf(entry.path), area: topArea(entry.path), binary: true, text: null, lines: 0, objectType: entry.type, source: "github" };
+      }
+      const blob = await githubApi(`/repos/${owner}/${repo}/git/blobs/${entry.sha}`, token);
+      const bytes = blob.encoding === "base64" ? decodeBase64Bytes(blob.content) : new TextEncoder().encode(blob.content || "");
+      const extension = extensionOf(entry.path);
+      const binary = bytesAreBinary(bytes, extension);
+      const text = binary ? null : new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+      return { path: entry.path, sha: entry.sha, size: Number(blob.size ?? entry.size ?? bytes.byteLength), extension, area: topArea(entry.path), binary, text, bytes, lines: binary ? 0 : textLineCount(text), objectType: "blob", source: "github" };
+    }
+
+    async function loadGithubSource(source, token) {
+      state.token = token || "";
+      setBusy(true, "Läser GitHub live…", "Löser exakt commit och repositoryidentitet.", 2);
+      const [resolved, meta] = await Promise.all([resolveGithubCommit(source, state.token), fetchGithubRepositoryMeta(source, state.token)]);
+      $("#loadingText").textContent = "Läser rekursivt Git tree…";
+      $("#loadingBar").style.width = "8%";
+      const tree = await fetchTreeRecursive(source, resolved.treeSha, state.token);
+      const entries = tree.filter((entry) => entry.type !== "tree").sort((a, b) => a.path.localeCompare(b.path));
+      const files = await mapLimit(entries, 7, (entry) => fetchGithubBlob(source, entry, state.token), "Läser exakta blobbar");
+      state.source = { mode: "github", ...source, fullName: `${source.owner}/${source.repo}` };
+      state.headSha = resolved.headSha;
+      state.treeSha = resolved.treeSha;
+      state.repositoryId = meta.id ?? null;
+      state.directoryHandle = null;
+      state.fallbackFiles = null;
+      state.files = files;
+      state.loadedAt = new Date();
+      state.lastCheckedAt = new Date();
+      finalizeLoad();
+      startPolling();
+    }
+
+    async function sha1GitBlob(bytes) {
+      if (!globalThis.crypto?.subtle) return null;
+      const header = new TextEncoder().encode(`blob ${bytes.byteLength}\0`);
+      const combined = new Uint8Array(header.byteLength + bytes.byteLength);
+      combined.set(header, 0);
+      combined.set(bytes, header.byteLength);
+      const digest = await crypto.subtle.digest("SHA-1", combined);
+      return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function normalizeLocalFile(file, path) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const extension = extensionOf(path);
+      const binary = bytesAreBinary(bytes, extension);
+      const text = binary ? null : new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+      const sha = await sha1GitBlob(bytes);
+      return { path, sha: sha || `local-${file.size}-${file.lastModified}`, size: file.size, extension, area: topArea(path), binary, text, bytes, lines: binary ? 0 : textLineCount(text), objectType: "blob", source: "local", lastModified: file.lastModified || null };
+    }
+
+    async function collectDirectoryHandleFiles(handle, prefix = "") {
+      const output = [];
+      for await (const [name, child] of handle.entries()) {
+        if (child.kind === "directory" && EXCLUDED_LOCAL_DIRS.has(name)) continue;
+        const path = prefix ? `${prefix}/${name}` : name;
+        if (child.kind === "directory") output.push(...await collectDirectoryHandleFiles(child, path));
+        else output.push({ file: await child.getFile(), path });
+      }
+      return output;
+    }
+
+    async function loadLocalHandle(handle) {
+      setBusy(true, "Läser lokal repo-root…", "Inventerar aktuell arbetsyta utan Git-metadata.", 2);
+      const entries = await collectDirectoryHandleFiles(handle);
+      entries.sort((a, b) => a.path.localeCompare(b.path));
+      const files = await mapLimit(entries, 5, ({ file, path }) => normalizeLocalFile(file, path), "Läser lokala filer");
+      state.source = { mode: "local-handle", fullName: handle.name || "Lokal repo-root", ref: "working-tree" };
+      state.directoryHandle = handle;
+      state.fallbackFiles = null;
+      state.token = "";
+      state.headSha = null;
+      state.treeSha = null;
+      state.repositoryId = null;
+      state.files = files;
+      state.loadedAt = new Date();
+      state.lastCheckedAt = new Date();
+      finalizeLoad();
+      stopPolling();
+    }
+
+    async function loadLocalFileList(fileList) {
+      setBusy(true, "Läser vald mapp…", "Normaliserar browserns mappval.", 2);
+      const entries = [...fileList].map((file) => ({ file, path: file.webkitRelativePath ? file.webkitRelativePath.split("/").slice(1).join("/") : file.name })).filter(({ path }) => path && !path.split("/").some((segment) => EXCLUDED_LOCAL_DIRS.has(segment))).sort((a, b) => a.path.localeCompare(b.path));
+      const files = await mapLimit(entries, 5, ({ file, path }) => normalizeLocalFile(file, path), "Läser valda filer");
+      const rootName = [...fileList][0]?.webkitRelativePath?.split("/")[0] || "Lokal repo-root";
+      state.source = { mode: "local-files", fullName: rootName, ref: "folder-selection" };
+      state.directoryHandle = null;
+      state.fallbackFiles = [...fileList];
+      state.token = "";
+      state.headSha = null;
+      state.treeSha = null;
+      state.repositoryId = null;
+      state.files = files;
+      state.loadedAt = new Date();
+      state.lastCheckedAt = new Date();
+      finalizeLoad();
+      stopPolling();
+    }
+
+    async function refreshSource({ silent = false } = {}) {
+      if (!state.source || state.busy) return;
+      try {
+        if (state.source.mode === "github") {
+          if (!silent) setBusy(true, "Kontrollerar GitHub head…", "Jämför aktuell branch mot laddad SHA.", 5);
+          const resolved = await resolveGithubCommit(state.source, state.token);
+          state.lastCheckedAt = new Date();
+          if (resolved.headSha === state.headSha) {
+            if (!silent) showToast("Ingen ändring — dashboarden är redan bunden till aktuell head.");
+            updateLiveHeader();
+            return;
+          }
+          await loadGithubSource({ owner: state.source.owner, repo: state.source.repo, ref: state.source.ref }, state.token);
+          showToast(`Ny head laddad: ${shortSha(state.headSha)}`);
+          return;
+        }
+        if (state.source.mode === "local-handle" && state.directoryHandle) {
+          await loadLocalHandle(state.directoryHandle);
+          showToast("Lokal arbetsyta omläst.");
+          return;
+        }
+        if (state.source.mode === "local-files") {
+          if (!silent) showToast("Välj mappen igen för att läsa nya bytes i fallback-läget.");
+          return;
+        }
+      } catch (error) {
+        if (!silent) showToast(safeErrorMessage(error));
+      } finally {
+        if (!silent || state.busy) setBusy(false);
+      }
+    }
+
+    function startPolling() {
+      stopPolling();
+      if (state.source?.mode !== "github") return;
+      state.pollTimer = setInterval(() => refreshSource({ silent: true }), POLL_INTERVAL_MS);
+    }
+
+    function stopPolling() {
+      if (state.pollTimer) clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+
+    function parseScalar(raw) {
+      const value = String(raw ?? "").trim();
+      if (!value) return "";
+      if (value === "null" || value === "~") return null;
+      if (value === "true") return true;
+      if (value === "false") return false;
+      if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
+      if (value.startsWith('"') && value.endsWith('"')) {
+        try { return JSON.parse(value); } catch { return value.slice(1, -1); }
+      }
+      if (value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1).replace(/''/g, "'");
+      if (value.startsWith("[") && value.endsWith("]")) {
+        try { return JSON.parse(value); } catch { return value; }
+      }
+      return value.replace(/\s+#.*$/, "");
+    }
+
+    function parseFrontmatter(text) {
+      const match = String(text || "").match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)/);
+      if (!match) return { exists: false, valid: !String(text || "").startsWith("---"), data: {}, raw: "", error: String(text || "").startsWith("---") ? "Frontmatter saknar avslutande delimiter" : null };
+      const data = {};
+      for (const line of match[1].split(/\r?\n/)) {
+        if (!line.trim() || /^\s*#/.test(line) || /^\s/.test(line)) continue;
+        const field = line.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$/);
+        if (field) data[field[1]] = parseScalar(field[2]);
+      }
+      const sourceRefMatch = match[1].match(/^\s+ref:\s*["']?([0-9a-f]{40})["']?\s*$/mi);
+      if (sourceRefMatch) data.__source_ref = sourceRefMatch[1];
+      return { exists: true, valid: true, data, raw: match[1], body: text.slice(match[0].length), error: null };
+    }
+
+    function stripFencedCode(text) {
+      const output = [];
+      let fence = null;
+      for (const line of String(text || "").split(/\r?\n/)) {
+        const marker = line.match(/^\s*(`{3,}|~{3,})/);
+        if (marker) {
+          const kind = marker[1][0];
+          if (!fence) fence = kind;
+          else if (fence === kind) fence = null;
+          output.push("");
+        } else output.push(fence ? "" : line);
+      }
+      return output.join("\n");
+    }
+
+    function fenceBalanced(text) {
+      let fence = null;
+      for (const line of String(text || "").split(/\r?\n/)) {
+        const marker = line.match(/^\s*(`{3,}|~{3,})/);
+        if (!marker) continue;
+        const kind = marker[1][0];
+        if (!fence) fence = kind;
+        else if (fence === kind) fence = null;
+      }
+      return fence === null;
+    }
+
+    function parseMarkdownLinks(file) {
+      const text = stripFencedCode(file.text || "");
+      const links = [];
+      const seen = new Set();
+      const markdownPattern = /(!?)\[[^\]]*\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
+      for (const match of text.matchAll(markdownPattern)) {
+        const target = match[2].trim();
+        const key = `${target}|${match.index}`;
+        if (!seen.has(key)) { seen.add(key); links.push({ sourcePath: file.path, target, image: match[1] === "!", kind: "markdown", index: match.index }); }
+      }
+      const barePattern = /https?:\/\/[^\s<>()`"']+/g;
+      for (const match of text.matchAll(barePattern)) {
+        const target = match[0].replace(/[.,;:!?]+$/, "");
+        if (links.some((link) => link.target === target && Math.abs(link.index - match.index) < 5)) continue;
+        links.push({ sourcePath: file.path, target, image: false, kind: "bare", index: match.index });
+      }
+      return links;
+    }
+
+    function normalizeRepoPath(path) {
+      const stack = [];
+      for (const segment of String(path || "").replace(/\\/g, "/").split("/")) {
+        if (!segment || segment === ".") continue;
+        if (segment === "..") stack.pop();
+        else stack.push(segment);
+      }
+      return stack.join("/");
+    }
+
+    function classifyLink(link, pathSet, directorySet) {
+      const raw = link.target;
+      if (raw.startsWith("#")) return { ...link, category: "internal", resolvedPath: link.sourcePath, valid: true };
+      if (/^(?:https?:|mailto:|tel:|data:)/i.test(raw)) return { ...link, category: "external", resolvedPath: null, valid: null };
+      if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return { ...link, category: "other-scheme", resolvedPath: null, valid: null };
+      const withoutFragment = raw.split("#")[0].split("?")[0];
+      if (!withoutFragment) return { ...link, category: "internal", resolvedPath: link.sourcePath, valid: true };
+      if (withoutFragment.startsWith("/")) return { ...link, category: "root-absolute", resolvedPath: null, valid: null };
+      let decoded = withoutFragment;
+      try { decoded = decodeURIComponent(withoutFragment); } catch { /* keep raw */ }
+      const base = link.sourcePath.includes("/") ? link.sourcePath.split("/").slice(0, -1).join("/") : "";
+      const resolvedPath = normalizeRepoPath(base ? `${base}/${decoded}` : decoded);
+      const valid = pathSet.has(resolvedPath) || directorySet.has(resolvedPath.replace(/\/$/, ""));
+      return { ...link, category: "internal", resolvedPath, valid };
+    }
+
+    function extractAdmonitions(file) {
+      const notes = [];
+      const lines = String(file.text || "").split(/\r?\n/);
+      for (let index = 0; index < lines.length; index += 1) {
+        const match = lines[index].match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$/i);
+        if (!match) continue;
+        const body = [match[2]].filter(Boolean);
+        let cursor = index + 1;
+        while (cursor < lines.length && /^>/.test(lines[cursor])) {
+          body.push(lines[cursor].replace(/^>\s?/, ""));
+          cursor += 1;
+        }
+        notes.push({ type: match[1].toUpperCase(), path: file.path, line: index + 1, text: body.join(" ").replace(/\s+/g, " ").trim() || "Markerad notis utan brödtext." });
+        index = cursor - 1;
+      }
+      const bodyText = stripFencedCode(file.text || "");
+      const actionPattern = /^#{2,4}\s+(Recommended next action|Next action|Open bounded work|Unknowns(?: and limitations)?|Risks?|Decisions? that remain open)\s*$([\s\S]*?)(?=^#{1,4}\s+|\s*$)/gmi;
+      for (const match of bodyText.matchAll(actionPattern)) {
+        const text = match[2].replace(/^\s*[-*]\s*/gm, "").replace(/\s+/g, " ").trim();
+        if (text) notes.push({ type: "ACTION", path: file.path, line: bodyText.slice(0, match.index).split(/\r?\n/).length, text: `${match[1]}: ${text.slice(0, 520)}` });
+      }
+      return notes;
+    }
+
+    function parseStatusPhases(file) {
+      if (!file?.text) return [];
+      const lines = file.text.split(/\r?\n/);
+      const headerIndex = lines.findIndex((line) => /^\|\s*Phase\s*\|\s*State\s*\|/i.test(line));
+      if (headerIndex < 0) return [];
+      const phases = [];
+      for (let index = headerIndex + 2; index < lines.length; index += 1) {
+        if (!/^\|/.test(lines[index])) break;
+        const cells = lines[index].split("|").slice(1, -1).map((cell) => cell.trim().replace(/`/g, ""));
+        if (cells.length < 2) continue;
+        const stateValue = cells[1].toUpperCase();
+        const progress = /COMPLETE|ACCEPTED|DONE/.test(stateValue) ? 100 : /IN PROGRESS|ACTIVE/.test(stateValue) ? 62 : /NEXT CANDIDATE|NEXT/.test(stateValue) ? 35 : /PLANNED/.test(stateValue) ? 12 : /BLOCKED|FAILED/.test(stateValue) ? 0 : 25;
+        phases.push({ name: cells[0], state: cells[1], evidence: cells[2] || "", progress });
+      }
+      return phases;
+    }
+
+    function parseCsvShape(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let quoted = false;
+      const input = String(text || "");
+      for (let index = 0; index < input.length; index += 1) {
+        const char = input[index];
+        if (char === '"') {
+          if (quoted && input[index + 1] === '"') { cell += '"'; index += 1; }
+          else quoted = !quoted;
+        } else if (char === "," && !quoted) { row.push(cell); cell = ""; }
+        else if ((char === "\n" || char === "\r" && input[index + 1] !== "\n") && !quoted) { row.push(cell); rows.push(row); row = []; cell = ""; }
+        else if (char !== "\r") cell += char;
+      }
+      if (cell || row.length) { row.push(cell); rows.push(row); }
+      return { rows: rows.length, columns: rows.reduce((max, current) => Math.max(max, current.length), 0), header: rows[0] || [] };
+    }
+
+    function scanSecrets(file) {
+      const findings = [];
+      const lines = String(file.text || "").split(/\r?\n/);
+      for (const pattern of SECRET_PATTERNS) {
+        pattern.regex.lastIndex = 0;
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+          pattern.regex.lastIndex = 0;
+          if (pattern.regex.test(lines[lineIndex])) findings.push({ severity: "high", code: "secret-pattern", title: pattern.label, detail: "Ett credential-liknande värde matchade. Själva värdet visas inte.", path: file.path, line: lineIndex + 1 });
+        }
+      }
+      return findings;
+    }
+
+    function issue(severity, code, title, detail, path = null, line = null) {
+      return { severity, code, title, detail, path, line };
+    }
+
+    function score(value, numerator, denominator, detail) {
+      return { value: value === null ? null : clamp(round(value)), numerator, denominator, detail };
+    }
+
+    function analyzeRepository(files) {
+      const analysis = {
+        files,
+        totalBytes: sum(files.map((file) => file.size)),
+        totalLines: sum(files.map((file) => file.lines)),
+        textFiles: files.filter((file) => !file.binary && file.text !== null),
+        binaryFiles: files.filter((file) => file.binary || file.text === null),
+        byType: new Map(),
+        byArea: new Map(),
+        records: [],
+        catalogRows: [],
+        sourceRelations: [],
+        inboxItems: [],
+        inboxPayloads: [],
+        inboxStateCounts: new Map(),
+        jsonDocuments: [],
+        jsonlDocuments: [],
+        csvDocuments: [],
+        notes: [],
+        links: [],
+        issues: [],
+        qaChecks: [],
+        scores: {},
+        phases: [],
+        statusRecord: null,
+        catalogRefs: new Set(),
+        recordIdCounts: new Map()
+      };
+      const pathSet = new Set(files.map((file) => file.path));
+      const directorySet = new Set();
+      for (const file of files) {
+        const segments = file.path.split("/");
+        for (let index = 1; index < segments.length; index += 1) directorySet.add(segments.slice(0, index).join("/"));
+        const type = analysis.byType.get(file.extension) || { key: file.extension, files: 0, bytes: 0, lines: 0 };
+        type.files += 1; type.bytes += file.size; type.lines += file.lines; analysis.byType.set(file.extension, type);
+        const area = analysis.byArea.get(file.area) || { key: file.area, files: 0, bytes: 0, lines: 0 };
+        area.files += 1; area.bytes += file.size; area.lines += file.lines; analysis.byArea.set(file.area, area);
+      }
+
+      let markdownCount = 0;
+      let balancedMarkdown = 0;
+      let frontmatterCandidates = 0;
+      let validFrontmatterRecords = 0;
+      let jsonValid = 0;
+      let jsonTotal = 0;
+      let jsonlValidLines = 0;
+      let jsonlTotalLines = 0;
+
+      for (const file of analysis.textFiles) {
+        if (file.extension === ".md") {
+          markdownCount += 1;
+          if (fenceBalanced(file.text)) balancedMarkdown += 1;
+          else analysis.issues.push(issue("medium", "markdown-fence", "Obalanserat Markdown-fence", "Ett kodblock öppnas eller stängs inte symmetriskt.", file.path));
+          const frontmatter = parseFrontmatter(file.text);
+          if (!frontmatter.valid) analysis.issues.push(issue("high", "frontmatter", "Ogiltigt YAML-frontmatter", frontmatter.error, file.path, 1));
+          if (frontmatter.exists && frontmatter.data.document_type) {
+            frontmatterCandidates += 1;
+            const missing = RECORD_REQUIRED.filter((key) => frontmatter.data[key] === undefined);
+            const classValid = RECORD_CLASSES.has(String(frontmatter.data.document_type));
+            const recordId = String(frontmatter.data.record_id || "");
+            const idValid = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/.test(recordId);
+            const valid = !missing.length && classValid && idValid;
+            if (valid) validFrontmatterRecords += 1;
+            else analysis.issues.push(issue("high", "record-metadata", "Ofullständig governed record", `${missing.length ? `Saknar: ${missing.join(", ")}. ` : ""}${classValid ? "" : "Okänd document_type. "}${idValid ? "" : "Ogiltigt record_id."}`.trim(), file.path, 1));
+            const record = { ...frontmatter.data, path: file.path, valid, missing, sourceRef: frontmatter.data.__source_ref || null };
+            analysis.records.push(record);
+            if (recordId) analysis.recordIdCounts.set(recordId, (analysis.recordIdCounts.get(recordId) || 0) + 1);
+            if (file.path === "STATUS.md") analysis.statusRecord = record;
+          }
+          analysis.links.push(...parseMarkdownLinks(file));
+          analysis.notes.push(...extractAdmonitions(file));
+        }
+        if (file.extension === ".json" || file.extension === ".schema.json") {
+          jsonTotal += 1;
+          try { analysis.jsonDocuments.push({ path: file.path, data: JSON.parse(file.text) }); jsonValid += 1; }
+          catch (error) { analysis.issues.push(issue("high", "json-parse", "Ogiltig JSON", safeErrorMessage(error), file.path)); }
+        }
+        if (file.extension === ".jsonl") {
+          const rows = [];
+          let lineNumber = 0;
+          for (const line of file.text.split(/\r?\n/)) {
+            lineNumber += 1;
+            if (!line.trim()) continue;
+            jsonlTotalLines += 1;
+            try {
+              const data = JSON.parse(line);
+              rows.push(data);
+              jsonlValidLines += 1;
+              if (data.source_relation_id) analysis.sourceRelations.push({ ...data, __path: file.path, __line: lineNumber });
+              if (data.record_id && data.path) analysis.catalogRows.push({ ...data, __path: file.path, __line: lineNumber });
+              if (data.intake_id && data.path) analysis.inboxItems.push({ ...data, __path: file.path, __line: lineNumber });
+              if (data.observed_ref) analysis.catalogRefs.add(data.observed_ref);
+            } catch (error) { analysis.issues.push(issue("high", "jsonl-parse", "Ogiltig JSONL-rad", safeErrorMessage(error), file.path, lineNumber)); }
+          }
+          analysis.jsonlDocuments.push({ path: file.path, rows });
+        }
+        if (file.extension === ".csv") analysis.csvDocuments.push({ path: file.path, ...parseCsvShape(file.text) });
+        analysis.issues.push(...scanSecrets(file));
+      }
+
+      for (const [recordId, count] of analysis.recordIdCounts) {
+        if (count > 1) analysis.issues.push(issue("high", "duplicate-record-id", "Duplicerat record_id", `${recordId} förekommer ${count} gånger.`, null));
+      }
+
+      analysis.links = analysis.links.map((link) => classifyLink(link, pathSet, directorySet));
+      const internalLinks = analysis.links.filter((link) => link.category === "internal");
+      const validInternalLinks = internalLinks.filter((link) => link.valid);
+      for (const link of internalLinks.filter((item) => !item.valid)) analysis.issues.push(issue("medium", "broken-internal-link", "Saknad intern länk", `Målet ${link.resolvedPath || link.target} finns inte i laddad tree.`, link.sourcePath));
+
+      const existingRoots = REQUIRED_ROOTS.filter((path) => pathSet.has(path));
+      for (const path of REQUIRED_ROOTS.filter((item) => !pathSet.has(item))) analysis.issues.push(issue("high", "required-root", "Saknad root authority-fil", `${path} saknas i laddad tree.`, path));
+
+      const inboxGovernancePaths = ["INBOX/README.md", "INBOX/AGENTS.md", "INBOX/intake-manifest.jsonl"];
+      const inboxGovernanceSet = new Set(inboxGovernancePaths);
+      const inboxPresent = files.some((file) => file.path.startsWith("INBOX/"));
+      const inboxFilesByPath = new Map(files.map((file) => [file.path, file]));
+      analysis.inboxPayloads = files.filter((file) => file.path.startsWith("INBOX/") && !inboxGovernanceSet.has(file.path));
+      const inboxIds = new Set();
+      const inboxRegisteredPaths = new Set();
+      let inboxExactEvidencePasses = 0;
+      let inboxPolicyPasses = 0;
+      for (const item of analysis.inboxItems) {
+        const itemPath = String(item.path || "");
+        const itemId = String(item.intake_id || "");
+        const duplicateId = inboxIds.has(itemId);
+        const duplicatePath = inboxRegisteredPaths.has(itemPath);
+        if (duplicateId) analysis.issues.push(issue("high", "inbox-duplicate-id", "Duplicerat intake-ID", `${itemId} förekommer mer än en gång.`, item.__path, item.__line));
+        if (duplicatePath) analysis.issues.push(issue("high", "inbox-duplicate-path", "Duplicerad intake-path", `${itemPath} registreras mer än en gång.`, item.__path, item.__line));
+        inboxIds.add(itemId);
+        inboxRegisteredPaths.add(itemPath);
+        analysis.inboxStateCounts.set(String(item.lifecycle_state || "UNKNOWN"), (analysis.inboxStateCounts.get(String(item.lifecycle_state || "UNKNOWN")) || 0) + 1);
+
+        const payload = inboxFilesByPath.get(itemPath);
+        if (!payload) {
+          analysis.issues.push(issue("high", "inbox-missing", "Registrerad inbox-payload saknas", itemPath || "Manifestpost utan path.", item.__path, item.__line));
+          continue;
+        }
+        const exactShaAvailable = /^[0-9a-f]{40}$/i.test(String(payload.sha || ""));
+        const shaMatches = exactShaAvailable && String(payload.sha).toLowerCase() === String(item.source_blob_sha || "").toLowerCase();
+        const bytesMatch = payload.size === item.observed_bytes;
+        const linesMatch = payload.lines === item.observed_text_lines;
+        if (!exactShaAvailable) analysis.issues.push(issue("medium", "inbox-sha-unavailable", "Inbox-SHA kunde inte beräknas", "Bytes är laddade men den lokala miljön gav ingen verifierbar Git blob-SHA.", itemPath));
+        else if (!shaMatches) analysis.issues.push(issue("high", "inbox-sha", "Inbox-payload avviker från registrerad blob", "Laddad Git blob-SHA matchar inte manifestets source_blob_sha.", itemPath));
+        if (!bytesMatch || !linesMatch) analysis.issues.push(issue("high", "inbox-observation", "Inbox-payload avviker från registrerad storlek", `Laddat: ${payload.size} bytes och ${payload.lines} textrader.`, itemPath));
+        if (shaMatches && bytesMatch && linesMatch) inboxExactEvidencePasses += 1;
+
+        const reviewed = item.lifecycle_state === "RECEIVED" || Boolean(item.reviewed_at && item.reviewed_by);
+        const candidateBound = !["CANDIDATE", "ADOPTED"].includes(item.lifecycle_state) || Boolean(item.candidate?.candidate_revision && item.candidate?.target_path && item.candidate?.target_use);
+        const adoptionBound = item.lifecycle_state !== "ADOPTED" || Boolean(item.approval?.approved_by && item.approval?.target_ref && item.approval?.target_use && item.approval?.candidate_revision === item.candidate?.candidate_revision);
+        const policyPass = item.raw_immutable === true && item.execution_policy === "never_execute_from_inbox" && reviewed && candidateBound && adoptionBound && !duplicateId && !duplicatePath;
+        if (!policyPass) analysis.issues.push(issue("high", "inbox-policy", "Inboxpost saknar lifecycle-policy", "Immutable-, non-execution- eller reviewkvittens saknas.", item.__path, item.__line));
+        else inboxPolicyPasses += 1;
+        for (const derivedPath of Array.isArray(item.derived_records) ? item.derived_records : []) {
+          if (!pathSet.has(derivedPath)) analysis.issues.push(issue("medium", "inbox-derived-missing", "Härledd inboxpost saknas", derivedPath, item.__path, item.__line));
+        }
+      }
+      for (const payload of analysis.inboxPayloads) {
+        if (!inboxRegisteredPaths.has(payload.path)) analysis.issues.push(issue("high", "inbox-unregistered", "Oregistrerad inbox-payload", "Payloaden finns under INBOX men saknar manifestpost.", payload.path));
+      }
+
+      const uniqueRecordIds = [...analysis.recordIdCounts.values()].filter((count) => count === 1).length;
+      const loadedBytes = sum(files.filter((file) => file.binary || file.text !== null).map((file) => file.size));
+      const parseUnits = jsonTotal + jsonlTotalLines;
+      const parsePasses = jsonValid + jsonlValidLines;
+      const secretFindings = analysis.issues.filter((item) => item.code === "secret-pattern").length;
+      const noSecretScore = secretFindings ? 0 : 100;
+      const frontmatterScore = frontmatterCandidates ? validFrontmatterRecords / frontmatterCandidates * 100 : 100;
+      const recordIdScore = analysis.records.length ? uniqueRecordIds / analysis.records.length * 100 : 100;
+      const fenceScore = markdownCount ? balancedMarkdown / markdownCount * 100 : 100;
+      const linkScore = internalLinks.length ? validInternalLinks.length / internalLinks.length * 100 : 100;
+      const parseScore = parseUnits ? parsePasses / parseUnits * 100 : 100;
+      const rootScore = existingRoots.length / REQUIRED_ROOTS.length * 100;
+      const coverageScore = analysis.totalBytes ? loadedBytes / analysis.totalBytes * 100 : 100;
+      const relationWeight = { verified: 1, partially_verified: .62, inferred: .35, unverified: 0 };
+      const provenanceScore = analysis.sourceRelations.length ? sum(analysis.sourceRelations.map((row) => relationWeight[row.verification_state] ?? 0)) / analysis.sourceRelations.length * 100 : null;
+      const inboxGovernanceScore = inboxPresent ? inboxGovernancePaths.filter((path) => pathSet.has(path)).length / inboxGovernancePaths.length * 100 : null;
+      const inboxRegistrationScore = inboxPresent ? (analysis.inboxPayloads.length ? analysis.inboxPayloads.filter((file) => inboxRegisteredPaths.has(file.path)).length / analysis.inboxPayloads.length * 100 : 100) : null;
+      const inboxEvidenceScore = inboxPresent ? (analysis.inboxItems.length ? inboxExactEvidencePasses / analysis.inboxItems.length * 100 : 0) : null;
+      const inboxPolicyScore = inboxPresent ? (analysis.inboxItems.length ? inboxPolicyPasses / analysis.inboxItems.length * 100 : 0) : null;
+      const inboxScore = inboxPresent ? average([inboxGovernanceScore, inboxRegistrationScore, inboxEvidenceScore, inboxPolicyScore]) : null;
+      const governanceScore = average([rootScore, frontmatterScore, recordIdScore, inboxScore]);
+      const contentScore = average([coverageScore, parseScore, frontmatterScore]);
+      const qaScore = average([parseScore, frontmatterScore, recordIdScore, fenceScore, linkScore, noSecretScore, rootScore, inboxScore]);
+      const overallScore = average([contentScore, governanceScore, provenanceScore, linkScore, qaScore]);
+
+      analysis.scores = {
+        overall: score(overallScore, null, null, "Medel av tillgängliga content-, governance-, provenance-, länk- och QA-indikatorer."),
+        content: score(contentScore, loadedBytes, analysis.totalBytes, "Laddningscoverage, parsekvalitet och governed metadata."),
+        governance: score(governanceScore, validFrontmatterRecords, frontmatterCandidates, "Root authority-filer, metadatafullständighet och unika record-ID:n."),
+        provenance: score(provenanceScore, analysis.sourceRelations.length, analysis.sourceRelations.length, analysis.sourceRelations.length ? "Viktat verification_state över live source-relation-rader." : "Ingen source-relation-data hittades."),
+        links: score(linkScore, validInternalLinks.length, internalLinks.length, "Endast interna länkar kan verifieras från repositoryträdet."),
+        inbox: score(inboxScore, null, null, inboxPresent ? "Medel av governancefiler, registrerade payloads, exakt SHA/bytes/rader och lifecycle-policy." : "Ingen INBOX-yta finns i laddad tree."),
+        qa: score(qaScore, null, null, `Medel av ${inboxPresent ? "åtta" : "sju"} strukturella filkontroller.`),
+        parsing: score(parseScore, parsePasses, parseUnits, "Giltiga JSON-dokument och JSONL-rader."),
+        coverage: score(coverageScore, loadedBytes, analysis.totalBytes, "Alla paths inventeras; text/binary identifieras från bytes."),
+        metadata: score(frontmatterScore, validFrontmatterRecords, frontmatterCandidates, "Governed Markdown med alla obligatoriska top-level-fält."),
+        fences: score(fenceScore, balancedMarkdown, markdownCount, "Markdownfiler med balanserade kodfences."),
+        secrets: score(noSecretScore, secretFindings ? 0 : 1, 1, "Credential-liknande mönster; matchade värden redovisas aldrig."),
+        roots: score(rootScore, existingRoots.length, REQUIRED_ROOTS.length, "Repositoryts läsbara entry point (README.md)."),
+        recordIds: score(recordIdScore, uniqueRecordIds, analysis.records.length, "Unika record_id bland governed records.")
+      };
+
+      analysis.qaChecks = [
+        { name: "JSON / JSONL", score: analysis.scores.parsing, state: parseScore === 100 ? "pass" : "fail" },
+        { name: "Record metadata", score: analysis.scores.metadata, state: frontmatterScore === 100 ? "pass" : "fail" },
+        { name: "Unika record-ID", score: analysis.scores.recordIds, state: recordIdScore === 100 ? "pass" : "fail" },
+        { name: "Markdown fences", score: analysis.scores.fences, state: fenceScore === 100 ? "pass" : "fail" },
+        { name: "Interna länkar", score: analysis.scores.links, state: linkScore === 100 ? "pass" : "fail" },
+        { name: "Credentialmönster", score: analysis.scores.secrets, state: noSecretScore === 100 ? "pass" : "fail" },
+        { name: "Repository entry point", score: analysis.scores.roots, state: rootScore === 100 ? "pass" : "fail" },
+        ...(inboxPresent ? [{ name: "Governed inbox", score: analysis.scores.inbox, state: inboxScore === 100 ? "pass" : "fail" }] : []),
+        { name: "Bytecoverage", score: analysis.scores.coverage, state: coverageScore === 100 ? "pass" : "fail" }
+      ];
+
+      analysis.phases = parseStatusPhases(files.find((file) => file.path === "STATUS.md"));
+      analysis.issues.sort((a, b) => severityRank(a.severity) - severityRank(b.severity) || String(a.path || "").localeCompare(String(b.path || "")));
+      return analysis;
+    }
+
+    function finalizeLoad() {
+      state.analysis = analyzeRepository(state.files);
+      state.selectedPath = state.files[0]?.path || null;
+      const initialTree = buildFileTree(state.files);
+      state.expandedDirectories = new Set(initialTree.directories.map((directory) => directory.path));
+      state.filterCollapsedDirectories.clear();
+      expandPathAncestors(state.selectedPath);
+      state.previewMode = "preview";
+      renderAll();
+      $("#emptyState").classList.add("hidden");
+      switchView(state.activeView || "overview");
+      setBusy(false);
+      showToast(`${formatNumber(state.files.length)} paths analyserade från ${state.source.mode === "github" ? shortSha(state.headSha) : "lokal arbetsyta"}.`);
+    }
+
+    function scoreTone(value) {
+      if (!Number.isFinite(value)) return "info";
+      if (value >= 85) return "good";
+      if (value >= 65) return "warn";
+      return "bad";
+    }
+
+    function setBadge(selector, text, tone = "info") {
+      const element = $(selector);
+      element.textContent = text;
+      element.className = `badge ${tone}`;
+    }
+
+    function renderKpis(selector, items) {
+      $(selector).innerHTML = items.map((item) => `
+        <article class="kpi">
+          <div class="kpi-label">${escapeHtml(item.label)}</div>
+          <div class="kpi-value">${escapeHtml(item.value)}</div>
+          <div class="kpi-detail" title="${escapeHtml(item.detail || "")}">${escapeHtml(item.detail || "")}</div>
+        </article>`).join("");
+    }
+
+    function scoreFraction(metric) {
+      if (Number.isFinite(metric?.numerator) && Number.isFinite(metric?.denominator)) {
+        return `${formatNumber(metric.numerator)} / ${formatNumber(metric.denominator)}`;
+      }
+      return metric?.detail || "Härledd indikator";
+    }
+
+    function renderScoreList(selector, entries) {
+      $(selector).innerHTML = entries.map(([label, metric]) => {
+        const value = Number.isFinite(metric?.value) ? metric.value : 0;
+        const display = Number.isFinite(metric?.value) ? `${metric.value}%` : "N/A";
+        const tone = scoreTone(metric?.value);
+        return `<div class="score-row" title="${escapeHtml(metric?.detail || "")}">
+          <div class="score-meta"><span>${escapeHtml(label)}</span><strong>${escapeHtml(display)} · ${escapeHtml(scoreFraction(metric))}</strong></div>
+          <div class="progress" role="progressbar" aria-label="${escapeHtml(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><i class="${tone}" style="width:${clamp(value)}%"></i></div>
+        </div>`;
+      }).join("");
+    }
+
+    function compactEntries(entries, maxEntries = 10) {
+      const sorted = [...entries].filter((entry) => entry.value > 0).sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label)));
+      if (sorted.length <= maxEntries) return sorted;
+      const visible = sorted.slice(0, maxEntries - 1);
+      visible.push({ label: `Övriga (${sorted.length - visible.length})`, value: sum(sorted.slice(maxEntries - 1).map((entry) => entry.value)) });
+      return visible;
+    }
+
+    function renderDonut(donutSelector, centerSelector, legendSelector, rawEntries, centerText) {
+      const entries = compactEntries(rawEntries);
+      const total = sum(entries.map((entry) => entry.value));
+      let cursor = 0;
+      const stops = [];
+      entries.forEach((entry, index) => {
+        const start = total ? cursor / total * 100 : 0;
+        cursor += entry.value;
+        const end = total ? cursor / total * 100 : 0;
+        stops.push(`${COLORS[index % COLORS.length]} ${start.toFixed(3)}% ${end.toFixed(3)}%`);
+      });
+      $(donutSelector).style.background = entries.length ? `conic-gradient(${stops.join(",")})` : "conic-gradient(var(--line) 0 100%)";
+      $(centerSelector).textContent = centerText;
+      $(legendSelector).innerHTML = entries.length ? entries.map((entry, index) => `
+        <div class="legend-row"><i class="legend-dot" style="background:${COLORS[index % COLORS.length]}"></i><strong title="${escapeHtml(entry.label)}">${escapeHtml(entry.label)}</strong><span>${formatNumber(entry.value)}</span></div>`).join("") : '<div class="empty-inline">Ingen data hittades.</div>';
+    }
+
+    function renderBars(selector, rawEntries, valueFormatter = formatNumber, limit = 10) {
+      const entries = [...rawEntries].sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label))).slice(0, limit);
+      const maximum = Math.max(1, ...entries.map((entry) => entry.value));
+      $(selector).innerHTML = entries.length ? entries.map((entry) => `
+        <div class="bar-row">
+          <span class="bar-label" title="${escapeHtml(entry.label)}">${escapeHtml(entry.label)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${clamp(entry.value / maximum * 100)}%"></div></div>
+          <strong>${escapeHtml(valueFormatter(entry.value))}</strong>
+        </div>`).join("") : '<div class="empty-inline">Ingen data hittades.</div>';
+    }
+
+    function updateLiveHeader() {
+      if (!state.source) return;
+      const github = state.source.mode === "github";
+      $("#repoTitle").textContent = state.source.fullName;
+      $("#liveText").textContent = github
+        ? `${state.source.ref} @ ${shortSha(state.headSha)} · kontrollerad ${formatDateTime(state.lastCheckedAt)}`
+        : `${state.source.ref} · omläst ${formatDateTime(state.lastCheckedAt)}`;
+      $("#liveDot").classList.add("on");
+      $("#refreshButton").disabled = state.busy;
+      $("#heroRepo").textContent = state.source.fullName;
+      $("#heroHead").textContent = github ? state.headSha : "LOCAL WORKING TREE";
+      $("#heroChecked").textContent = github
+        ? `Tree ${shortSha(state.treeSha)} · repository-id ${state.repositoryId ?? "ej tillgängligt"} · API-kvot ${state.rateRemaining ?? "—"}`
+        : "Ingen Git commit hävdas i lokalt läge.";
+      $("#heroSummary").textContent = github
+        ? `Samtliga paths och blobbar är laddade från exakt commit ${shortSha(state.headSha)}. Polling jämför endast head var 60:e sekund och laddar om vid SHA-byte.`
+        : "Samtliga valda arbetsytefiler har lästs om från disk. .git och tekniska build/cache-kataloger ingår inte.";
+      setBadge("#sourceBadge", github ? "GITHUB · EXAKT COMMIT" : "LOKAL · WORKING TREE", github ? "good" : "warn");
+    }
+
+    function renderOverview() {
+      const analysis = state.analysis;
+      renderKpis("#overviewKpis", [
+        { label: "Paths", value: formatNumber(analysis.files.length), detail: `${formatNumber(analysis.textFiles.length)} text · ${formatNumber(analysis.binaryFiles.length)} binära` },
+        { label: "Storlek", value: formatBytes(analysis.totalBytes), detail: "Summerade livebytes" },
+        { label: "Textrader", value: formatNumber(analysis.totalLines), detail: "Räknade i laddade textfiler" },
+        { label: "Områden", value: formatNumber(analysis.byArea.size), detail: "Toppkataloger + root" },
+        { label: "Records", value: formatNumber(analysis.records.length), detail: `${formatNumber(analysis.catalogRows.length)} katalograder` },
+        { label: "Inbox", value: formatNumber(analysis.inboxItems.length), detail: `${formatNumber(analysis.inboxPayloads.length)} payloads · ${Number.isFinite(analysis.scores.inbox.value) ? `${analysis.scores.inbox.value}%` : "N/A"}` },
+        { label: "QA-fynd", value: formatNumber(analysis.issues.length), detail: `${formatNumber(analysis.issues.filter((item) => item.severity === "high").length)} höga` }
+      ]);
+      renderScoreList("#scoreList", [
+        ["Total hälsa", analysis.scores.overall],
+        ["Content", analysis.scores.content],
+        ["Governance", analysis.scores.governance],
+        ["Inbox", analysis.scores.inbox],
+        ["Provenance", analysis.scores.provenance],
+        ["Interna länkar", analysis.scores.links],
+        ["QA", analysis.scores.qa]
+      ]);
+      setBadge("#overallBadge", Number.isFinite(analysis.scores.overall.value) ? `${analysis.scores.overall.value}%` : "N/A", scoreTone(analysis.scores.overall.value));
+      setBadge("#textCoverageBadge", `${analysis.scores.coverage.value}% bytecoverage`, scoreTone(analysis.scores.coverage.value));
+      renderDonut("#typeDonut", "#typeDonutCenter", "#typeLegend", [...analysis.byType.values()].map((item) => ({ label: item.key, value: item.files })), `${formatNumber(analysis.files.length)} filer`);
+      renderBars("#directoryBars", [...analysis.byArea.values()].map((item) => ({ label: item.key, value: item.bytes })), formatBytes);
+      renderPhases();
+      renderNotes("#overviewNotes", prioritizedNotes().slice(0, 6));
+    }
+
+    function statusFreshness() {
+      const recordRef = state.analysis.statusRecord?.sourceRef;
+      if (state.source.mode !== "github") return { text: "LOKAL OBSERVATION", tone: "warn" };
+      if (!recordRef) return { text: "STATUS UTAN SOURCE REF", tone: "warn" };
+      if (recordRef === state.headSha) return { text: "STATUS MATCHAR HEAD", tone: "good" };
+      return { text: `HISTORISK · ${shortSha(recordRef)}`, tone: "warn" };
+    }
+
+    function renderPhases() {
+      const phases = state.analysis.phases;
+      const freshness = statusFreshness();
+      setBadge("#statusFreshnessBadge", freshness.text, freshness.tone);
+      $("#phaseList").innerHTML = phases.length ? phases.map((phase) => {
+        const tone = scoreTone(phase.progress);
+        return `<div class="phase-card">
+          <div><div class="phase-name">${escapeHtml(phase.name)}</div><span class="badge ${tone}">${escapeHtml(phase.state)}</span></div>
+          <div class="progress" role="progressbar" aria-label="${escapeHtml(phase.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${phase.progress}"><i class="${tone}" style="width:${phase.progress}%"></i></div>
+          <strong>${phase.progress}%</strong>
+          <div class="phase-evidence" title="${escapeHtml(phase.evidence)}">${escapeHtml(phase.evidence || "Ingen evidenscell")}</div>
+        </div>`;
+      }).join("") : '<div class="empty-inline">Ingen kompatibel Phase-tabell hittades i STATUS.md.</div>';
+    }
+
+    function prioritizedNotes() {
+      const rank = { CAUTION: 0, WARNING: 1, IMPORTANT: 2, ACTION: 3, NOTE: 4, TIP: 5 };
+      return [...state.analysis.notes].sort((a, b) => (rank[a.type] ?? 9) - (rank[b.type] ?? 9) || a.path.localeCompare(b.path) || a.line - b.line);
+    }
+
+    function noteMarkup(note) {
+      return `<article class="note-card ${escapeHtml(note.type)}">
+        <div class="note-top"><strong>${escapeHtml(note.type)}</strong><span class="note-path" title="${escapeHtml(note.path)}">${escapeHtml(note.path)}:${formatNumber(note.line)}</span></div>
+        <p>${escapeHtml(note.text)}</p>
+      </article>`;
+    }
+
+    function renderNotes(selector, notes) {
+      $(selector).innerHTML = notes.length ? notes.map(noteMarkup).join("") : '<div class="empty-inline">Inga matchande notiser hittades.</div>';
+    }
+
+    function renderContent() {
+      const analysis = state.analysis;
+      const markdown = analysis.files.filter((file) => file.extension === ".md").length;
+      const structured = analysis.files.filter((file) => [".json", ".schema.json", ".jsonl", ".csv", ".yml", ".yaml"].includes(file.extension)).length;
+      renderKpis("#contentKpis", [
+        { label: "Textfiler", value: formatNumber(analysis.textFiles.length), detail: `${analysis.scores.coverage.value}% bytecoverage` },
+        { label: "Binära", value: formatNumber(analysis.binaryFiles.length), detail: "SHA, storlek och bytes laddade" },
+        { label: "Markdown", value: formatNumber(markdown), detail: `${analysis.scores.fences.value}% balanserade fences` },
+        { label: "Strukturerat", value: formatNumber(structured), detail: "JSON · JSONL · CSV · YAML" },
+        { label: "Governed", value: formatNumber(analysis.records.length), detail: `${analysis.scores.metadata.value}% metadata` },
+        { label: "Inbox", value: formatNumber(analysis.inboxItems.length), detail: `${formatNumber(analysis.inboxPayloads.length)} payloads` }
+      ]);
+      setBadge("#contentCoverageBadge", `${analysis.scores.content.value}% content`, scoreTone(analysis.scores.content.value));
+      const areas = [...analysis.byArea.values()].sort((a, b) => b.bytes - a.bytes || a.key.localeCompare(b.key));
+      renderBars("#areaBars", areas.map((item) => ({ label: item.key, value: item.bytes })), formatBytes, areas.length);
+      const classCounts = new Map();
+      for (const record of analysis.records) classCounts.set(String(record.document_type || "UNKNOWN"), (classCounts.get(String(record.document_type || "UNKNOWN")) || 0) + 1);
+      renderDonut("#recordDonut", "#recordDonutCenter", "#recordLegend", [...classCounts].map(([label, value]) => ({ label, value })), `${formatNumber(analysis.records.length)} records`);
+      $("#recordTable").innerHTML = analysis.records.length ? [...analysis.records].sort((a, b) => a.path.localeCompare(b.path)).map((record) => `
+        <tr>
+          <td><strong>${escapeHtml(record.record_id || "—")}</strong><br><span class="faint">${escapeHtml(record.title || "")}</span></td>
+          <td><span class="badge info">${escapeHtml(record.document_type || "—")}</span></td>
+          <td>${escapeHtml(record.status ?? "—")}</td>
+          <td>${escapeHtml(record.confidence ?? "—")}</td>
+          <td>${escapeHtml(record.created_at ?? "—")}</td>
+          <td><button class="path-button mono" type="button" data-open-path="${escapeHtml(record.path)}">${escapeHtml(record.path)}</button></td>
+        </tr>`).join("") : '<tr><td colspan="6">Inga governed records hittades.</td></tr>';
+      setBadge("#inboxBadge", Number.isFinite(analysis.scores.inbox.value) ? `${analysis.scores.inbox.value}%` : "N/A", scoreTone(analysis.scores.inbox.value));
+      $("#inboxTable").innerHTML = analysis.inboxItems.length ? [...analysis.inboxItems].sort((a, b) => String(a.path).localeCompare(String(b.path))).map((item) => `
+        <tr>
+          <td><strong>${escapeHtml(item.intake_id || "—")}</strong></td>
+          <td><span class="badge info">${escapeHtml(item.lifecycle_state || "—")}</span></td>
+          <td>${escapeHtml(item.content_kind || "—")}</td>
+          <td>${escapeHtml(item.reuse?.state || "—")} · ${escapeHtml(item.reuse?.license_state || "—")}</td>
+          <td>${formatNumber(Array.isArray(item.risk_flags) ? item.risk_flags.length : 0)}</td>
+          <td><button class="path-button mono" type="button" data-open-path="${escapeHtml(item.path || "")}">${escapeHtml(item.path || "—")}</button></td>
+        </tr>`).join("") : '<tr><td colspan="6">Inga manifestregistrerade inboxposter hittades.</td></tr>';
+      $("#areaTable").innerHTML = areas.map((area) => `
+        <tr><td><strong>${escapeHtml(area.key)}</strong></td><td>${formatNumber(area.files)}</td><td>${formatBytes(area.bytes)}</td><td>${formatNumber(area.lines)}</td><td>${analysis.totalBytes ? (area.bytes / analysis.totalBytes * 100).toFixed(1) : "0.0"}%</td></tr>`).join("");
+    }
+
+    function renderQuality() {
+      const analysis = state.analysis;
+      const passed = analysis.qaChecks.filter((check) => check.state === "pass").length;
+      setBadge("#qaBadge", `${passed}/${analysis.qaChecks.length} PASS`, passed === analysis.qaChecks.length ? "good" : "warn");
+      $("#qaCards").innerHTML = analysis.qaChecks.map((check) => `
+        <article class="qa-card">
+          <strong>${escapeHtml(check.name)}</strong>
+          <span class="${check.state === "pass" ? "positive" : "warning"}">${check.state === "pass" ? "PASS" : "REVIEW"} · ${Number.isFinite(check.score.value) ? `${check.score.value}%` : "N/A"}</span>
+        </article>`).join("");
+      renderScoreList("#qualityScores", [
+        ["JSON / JSONL", analysis.scores.parsing],
+        ["Metadata", analysis.scores.metadata],
+        ["Record-ID", analysis.scores.recordIds],
+        ["Markdown fences", analysis.scores.fences],
+        ["Interna länkar", analysis.scores.links],
+        ["Credentialmönster", analysis.scores.secrets],
+        ["Repository entry point", analysis.scores.roots],
+        ["Governed inbox", analysis.scores.inbox],
+        ["Bytecoverage", analysis.scores.coverage]
+      ]);
+      const exactBoundary = state.source.mode === "github"
+        ? `Verifierat: paths, blob-SHA:n och bytes från commit ${shortSha(state.headSha)}.`
+        : "Verifierat: valda arbetsytefiler och lästa bytes vid senaste lokala omläsning; ingen Git-head hävdas.";
+      $("#evidenceBoundary").innerHTML = [
+        ["Filstruktur", exactBoundary, "good"],
+        ["Innehåll", "JSON/JSONL, frontmatter, Markdown-fences, interna länkar och credentialmönster kontrolleras mot laddade bytes.", "good"],
+        ["Inbox", "Manifestet kan verifiera containment, blob-SHA, storlek och lifecycle-policy men inte källa, licens, säkerhet, kompatibilitet eller adoption.", "warn"],
+        ["Plattform", "Branch protection, reviews, Actions, secrets, GitHub-settings och deploystatus kan inte bevisas av denna fristående fil.", "warn"],
+        ["Externt", "Externa länkmål, identitet, licens, färskhet och content equivalence verifieras inte genom att nätverksmål följs.", "warn"]
+      ].map(([title, detail, tone]) => `<div class="issue"><i class="severity ${tone === "good" ? "low" : "medium"}"></i><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(detail)}</p></div><span class="badge ${tone}">${tone === "good" ? "INOM" : "UTANFÖR"}</span></div>`).join("");
+      setBadge("#issueCountBadge", `${formatNumber(analysis.issues.length)} FYND`, analysis.issues.some((item) => item.severity === "high") ? "bad" : analysis.issues.length ? "warn" : "good");
+      $("#issueList").innerHTML = analysis.issues.length ? analysis.issues.map((finding) => `
+        <div class="issue">
+          <i class="severity ${escapeHtml(finding.severity)}"></i>
+          <div><strong>${escapeHtml(finding.title)}</strong><p>${escapeHtml(finding.detail)}</p></div>
+          <span class="mono faint">${escapeHtml(finding.path || "repository")}${finding.line ? `:${formatNumber(finding.line)}` : ""}</span>
+        </div>`).join("") : '<div class="empty-inline positive">Inga strukturella fynd i de kontroller dashboarden kan utföra.</div>';
+    }
+
+    function readPathValue(object, path) {
+      return path.split(".").reduce((value, key) => value && typeof value === "object" ? value[key] : undefined, object);
+    }
+
+    function relationValue(row, candidates, fallback = "—") {
+      for (const candidate of candidates) {
+        const value = readPathValue(row, candidate);
+        if (value === undefined || value === null || value === "") continue;
+        if (typeof value === "object") return String(value.name ?? value.title ?? value.id ?? JSON.stringify(value));
+        return String(value);
+      }
+      return fallback;
+    }
+
+    const relationFields = Object.freeze({
+      artifact: ["artifact.name", "artifact.title", "artifact", "artifact_path", "artifact_name", "artifact_title", "source_artifact", "source_identifier", "artifact_id"],
+      provider: ["provider.name", "provider", "provider_name", "source_provider", "source.provider", "provider_id"],
+      relation: ["relation_type", "relation", "source_relation_type"],
+      identity: ["source_identity_state", "identity_state", "identity_verification", "identity"],
+      equivalence: ["content_equivalence_state", "content_equivalence", "equivalence_state", "equivalence"],
+      verification: ["verification_state", "verification.status", "verification"]
+    });
+
+    function renderSources() {
+      const rows = state.analysis.sourceRelations;
+      const providers = new Map();
+      const artifacts = new Map();
+      const verification = new Map();
+      for (const row of rows) {
+        const provider = relationValue(row, relationFields.provider, "Okänd provider");
+        const artifact = relationValue(row, relationFields.artifact, "Okänd artifact");
+        const verified = relationValue(row, relationFields.verification, "unspecified");
+        providers.set(provider, (providers.get(provider) || 0) + 1);
+        artifacts.set(artifact, (artifacts.get(artifact) || 0) + 1);
+        verification.set(verified, (verification.get(verified) || 0) + 1);
+      }
+      const verifiedCount = [...verification].filter(([key]) => /^verified$/i.test(key)).reduce((total, [, value]) => total + value, 0);
+      const currentCatalogRefs = state.source.mode === "github" ? [...state.analysis.catalogRefs].filter((ref) => ref === state.headSha).length : 0;
+      renderKpis("#sourceKpis", [
+        { label: "Relationer", value: formatNumber(rows.length), detail: "Alla live JSONL-rader" },
+        { label: "Artifacts", value: formatNumber(artifacts.size), detail: "Unika observerade labels" },
+        { label: "Providers", value: formatNumber(providers.size), detail: "Unika observerade labels" },
+        { label: "Verified", value: formatNumber(verifiedCount), detail: "Exakt verification_state=verified" },
+        { label: "Catalog refs", value: formatNumber(state.analysis.catalogRefs.size), detail: state.source.mode === "github" ? `${currentCatalogRefs} matchar aktuell head` : "Historiska refs i lokalt innehåll" },
+        { label: "Provenance", value: Number.isFinite(state.analysis.scores.provenance.value) ? `${state.analysis.scores.provenance.value}%` : "N/A", detail: "Viktat verification_state" }
+      ]);
+      setBadge("#sourceRelationBadge", `${formatNumber(rows.length)} RELATIONER`, rows.length ? "info" : "warn");
+      renderBars("#providerBars", [...providers].map(([label, value]) => ({ label, value })), formatNumber, providers.size);
+      renderDonut("#verificationDonut", "#verificationDonutCenter", "#verificationLegend", [...verification].map(([label, value]) => ({ label, value })), `${formatNumber(rows.length)} relationer`);
+      renderSourceGraph(rows);
+      $("#relationTable").innerHTML = rows.length ? rows.map((row) => `
+        <tr>
+          <td><strong>${escapeHtml(row.source_relation_id || row.id || "—")}</strong><br><button class="path-button faint" type="button" data-open-path="${escapeHtml(row.__path)}">${escapeHtml(row.__path)}:${formatNumber(row.__line)}</button></td>
+          <td>${escapeHtml(relationValue(row, relationFields.artifact))}</td>
+          <td>${escapeHtml(relationValue(row, relationFields.provider))}</td>
+          <td>${escapeHtml(relationValue(row, relationFields.relation))}</td>
+          <td>${escapeHtml(relationValue(row, relationFields.identity))}</td>
+          <td>${escapeHtml(relationValue(row, relationFields.equivalence))}</td>
+        </tr>`).join("") : '<tr><td colspan="6">Inga source-relation-rader hittades.</td></tr>';
+    }
+
+    function shorten(value, length = 34) {
+      const text = String(value);
+      return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+    }
+
+    function renderSourceGraph(rows) {
+      if (!rows.length) {
+        $("#sourceGraph").innerHTML = '<div class="preview-empty">Ingen relationsdata att visualisera.</div>';
+        return;
+      }
+      const artifacts = [...new Set(rows.map((row) => relationValue(row, relationFields.artifact, "Okänd artifact")))].sort();
+      const providers = [...new Set(rows.map((row) => relationValue(row, relationFields.provider, "Okänd provider")))].sort();
+      const height = Math.max(330, Math.max(artifacts.length, providers.length) * 38 + 72);
+      const width = 900;
+      const yFor = (index, count) => count <= 1 ? height / 2 : 46 + index * (height - 92) / (count - 1);
+      const artifactY = new Map(artifacts.map((value, index) => [value, yFor(index, artifacts.length)]));
+      const providerY = new Map(providers.map((value, index) => [value, yFor(index, providers.length)]));
+      const edges = rows.map((row) => {
+        const artifact = relationValue(row, relationFields.artifact, "Okänd artifact");
+        const provider = relationValue(row, relationFields.provider, "Okänd provider");
+        const verified = relationValue(row, relationFields.verification, "unspecified").toLowerCase();
+        const color = verified === "verified" ? "#b8f36a" : verified.includes("partial") ? "#ffbf5a" : "#667b92";
+        return `<path d="M 302 ${artifactY.get(artifact)} C 430 ${artifactY.get(artifact)}, 470 ${providerY.get(provider)}, 598 ${providerY.get(provider)}" fill="none" stroke="${color}" stroke-width="1.5" opacity=".48"><title>${escapeHtml(`${artifact} → ${provider}`)}</title></path>`;
+      }).join("");
+      const artifactNodes = artifacts.map((value) => `<g transform="translate(18 ${artifactY.get(value) - 14})"><rect width="284" height="28" rx="8" fill="#121c2b" stroke="#26364b"></rect><text x="12" y="18" fill="#edf5ff" font-size="11">${escapeHtml(shorten(value))}<title>${escapeHtml(value)}</title></text></g>`).join("");
+      const providerNodes = providers.map((value) => `<g transform="translate(598 ${providerY.get(value) - 14})"><rect width="284" height="28" rx="8" fill="#121c2b" stroke="#26364b"></rect><text x="12" y="18" fill="#edf5ff" font-size="11">${escapeHtml(shorten(value))}<title>${escapeHtml(value)}</title></text></g>`).join("");
+      $("#sourceGraph").innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Artifact till provider-relationer"><text x="18" y="23" fill="#8fa4bb" font-size="10">ARTIFACTS · ${artifacts.length}</text><text x="598" y="23" fill="#8fa4bb" font-size="10">PROVIDERS · ${providers.length}</text>${edges}${artifactNodes}${providerNodes}</svg>`;
+    }
+
+    function populateExplorerFilters() {
+      const currentType = $("#typeFilter").value;
+      const currentArea = $("#areaFilter").value;
+      const types = [...state.analysis.byType.keys()].sort();
+      const areas = [...state.analysis.byArea.keys()].sort();
+      $("#typeFilter").innerHTML = '<option value="all">Alla filändelser</option>' + types.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value === "[no extension]" ? "utan ändelse" : value)}</option>`).join("");
+      $("#areaFilter").innerHTML = '<option value="all">Alla områden</option>' + areas.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+      if (types.includes(currentType)) $("#typeFilter").value = currentType;
+      if (areas.includes(currentArea)) $("#areaFilter").value = currentArea;
+    }
+
+    function filteredFiles() {
+      const query = $("#fileSearch").value.trim().toLocaleLowerCase("sv");
+      const type = $("#typeFilter").value;
+      const area = $("#areaFilter").value;
+      return state.files.filter((file) => {
+        if (type !== "all" && file.extension !== type) return false;
+        if (area !== "all" && file.area !== area) return false;
+        if (!query) return true;
+        return file.path.toLocaleLowerCase("sv").includes(query) || (!file.binary && String(file.text || "").toLocaleLowerCase("sv").includes(query));
+      });
+    }
+
+    function fileFiltersActive() {
+      return Boolean($("#fileSearch").value.trim() || $("#typeFilter").value !== "all" || $("#areaFilter").value !== "all");
+    }
+
+    function expandPathAncestors(path) {
+      const segments = String(path || "").split("/").filter(Boolean).slice(0, -1);
+      let currentPath = "";
+      for (const segment of segments) {
+        currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+        state.expandedDirectories.add(currentPath);
+        state.filterCollapsedDirectories.delete(currentPath);
+      }
+    }
+
+    function directoryIsExpanded(path) {
+      return fileFiltersActive() ? !state.filterCollapsedDirectories.has(path) : state.expandedDirectories.has(path);
+    }
+
+    function focusTreeItem(kind, path) {
+      setTimeout(() => {
+        const key = kind === "directory" ? "directoryPath" : "filePath";
+        const item = $$("#fileList [role='treeitem']").find((element) => element.dataset[key] === path);
+        item?.focus();
+      }, 0);
+    }
+
+    function toggleDirectory(path, restoreFocus = false) {
+      if (fileFiltersActive()) {
+        if (state.filterCollapsedDirectories.has(path)) state.filterCollapsedDirectories.delete(path);
+        else state.filterCollapsedDirectories.add(path);
+      } else if (state.expandedDirectories.has(path)) state.expandedDirectories.delete(path);
+      else state.expandedDirectories.add(path);
+      renderFileList();
+      if (restoreFocus) focusTreeItem("directory", path);
+    }
+
+    function setAllDirectories(expanded) {
+      const paths = directoryPaths(buildFileTree(filteredFiles()));
+      if (fileFiltersActive()) state.filterCollapsedDirectories = expanded ? new Set() : new Set(paths);
+      else state.expandedDirectories = expanded ? new Set(paths) : new Set();
+      renderFileList();
+    }
+
+    function renderFileList(files = filteredFiles()) {
+      setBadge("#explorerCountBadge", `${formatNumber(files.length)} / ${formatNumber(state.files.length)} PATHS`, files.length === state.files.length ? "info" : "warn");
+      if (!files.length) {
+        $("#fileList").innerHTML = '<div class="tree-empty">Inga paths matchar filtret.</div>';
+        return;
+      }
+      const tree = buildFileTree(files);
+      const rows = [];
+      const renderFiles = (items, depth) => {
+        for (const file of items) {
+          const name = fileNameParts(file);
+          const selected = file.path === state.selectedPath;
+          rows.push(`<button class="tree-row file-row${selected ? " active" : ""}" type="button" role="treeitem" aria-level="${depth}" aria-selected="${selected}" aria-label="${escapeHtml(`${name.fullName}, ${name.extensionLabel}, ${formatBytes(file.size)}, ${file.binary ? "binary" : `${formatNumber(file.lines)} rader`}`)}" data-file-path="${escapeHtml(file.path)}" style="--tree-depth:${depth}" title="${escapeHtml(file.path)}">
+            <span class="file-glyph" aria-hidden="true"></span>
+            <span class="file-copy"><span class="file-name-line"><span class="file-stem">${escapeHtml(name.stem)}</span><span class="file-extension${name.extension === "[no extension]" ? " none" : ""}">${escapeHtml(name.extensionLabel)}</span></span><span class="file-meta">${formatBytes(file.size)} · ${file.binary ? "binary" : `${formatNumber(file.lines)} rader`}</span></span>
+          </button>`);
+        }
+      };
+      const renderDirectories = (directories, depth) => {
+        for (const directory of directories) {
+          const expanded = directoryIsExpanded(directory.path);
+          rows.push(`<button class="tree-row tree-directory" type="button" role="treeitem" aria-level="${depth}" aria-expanded="${expanded}" aria-label="${escapeHtml(`${directory.name}, katalog, ${formatNumber(directory.fileCount)} filer, ${formatBytes(directory.bytes)}`)}" data-directory-path="${escapeHtml(directory.path)}" style="--tree-depth:${depth}" title="${escapeHtml(directory.path)}">
+            <span class="tree-chevron" aria-hidden="true">›</span><span class="tree-folder" aria-hidden="true"></span><span class="tree-directory-name">${escapeHtml(directory.name)}</span><span class="tree-directory-meta">${formatNumber(directory.fileCount)} · ${formatBytes(directory.bytes)}</span>
+          </button>`);
+          if (expanded) {
+            renderDirectories(directory.directories, depth + 1);
+            renderFiles(directory.files, depth + 1);
+          }
+        }
+      };
+      renderDirectories(tree.directories, 1);
+      renderFiles(tree.files, 1);
+      $("#fileList").innerHTML = rows.join("");
+    }
+
+    function resolveInternalPreviewPath(currentPath, target) {
+      if (target.startsWith("#")) return currentPath;
+      const clean = target.split("#")[0].split("?")[0];
+      if (!clean || clean.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(clean)) return null;
+      let decoded = clean;
+      try { decoded = decodeURIComponent(clean); } catch { decoded = clean; }
+      const base = currentPath.includes("/") ? currentPath.split("/").slice(0, -1).join("/") : "";
+      return normalizeRepoPath(base ? `${base}/${decoded}` : decoded);
+    }
+
+    function inlineMarkup(raw, currentPath) {
+      const placeholders = [];
+      const hold = (html) => {
+        const index = placeholders.push(html) - 1;
+        return `\u0000${index}\u0000`;
+      };
+      let text = String(raw || "").replace(/\u0000/g, "�");
+      text = text.replace(/`([^`\n]+)`/g, (_, code) => hold(`<code>${escapeHtml(code)}</code>`));
+      text = text.replace(/(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g, (_, image, label, target) => {
+        const safeLabel = escapeHtml(label || target);
+        if (image) return hold(`<span class="muted">[bild: ${safeLabel}]</span>`);
+        if (/^https?:\/\//i.test(target) || /^mailto:/i.test(target)) return hold(`<a href="${escapeHtml(target)}" target="_blank" rel="noopener noreferrer">${safeLabel}</a>`);
+        const resolved = resolveInternalPreviewPath(currentPath, target);
+        if (resolved) return hold(`<button class="inline-link" type="button" data-open-path="${escapeHtml(resolved)}">${safeLabel}</button>`);
+        return hold(`<span>${safeLabel}</span>`);
+      });
+      text = escapeHtml(text)
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+        .replace(/(^|[^\w])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+      return text.replace(/\u0000(\d+)\u0000/g, (_, index) => placeholders[Number(index)] || "");
+    }
+
+    function renderMarkdown(text, currentPath) {
+      const frontmatter = parseFrontmatter(text);
+      const source = frontmatter.exists ? frontmatter.body : String(text || "");
+      const lines = source.split(/\r?\n/);
+      const output = [];
+      let fence = null;
+      let code = [];
+      let list = null;
+      const closeList = () => {
+        if (list) output.push(`</${list}>`);
+        list = null;
+      };
+      for (const line of lines) {
+        const marker = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+        if (marker) {
+          if (!fence) {
+            closeList();
+            fence = marker[1][0];
+            code = [];
+          } else if (fence === marker[1][0]) {
+            output.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+            fence = null;
+            code = [];
+          }
+          continue;
+        }
+        if (fence) { code.push(line); continue; }
+        if (!line.trim()) { closeList(); continue; }
+        const heading = line.match(/^(#{1,6})\s+(.+)$/);
+        if (heading) {
+          closeList();
+          const level = Math.min(3, heading[1].length);
+          output.push(`<h${level}>${inlineMarkup(heading[2], currentPath)}</h${level}>`);
+          continue;
+        }
+        const item = line.match(/^\s*([-*+]|\d+\.)\s+(.+)$/);
+        if (item) {
+          const nextList = /\d+\./.test(item[1]) ? "ol" : "ul";
+          if (list !== nextList) { closeList(); list = nextList; output.push(`<${list}>`); }
+          output.push(`<li>${inlineMarkup(item[2], currentPath)}</li>`);
+          continue;
+        }
+        const quote = line.match(/^>\s?(.*)$/);
+        if (quote) { closeList(); output.push(`<blockquote><p>${inlineMarkup(quote[1], currentPath)}</p></blockquote>`); continue; }
+        if (/^\s*(?:---+|\*\*\*+)\s*$/.test(line)) { closeList(); output.push("<hr>"); continue; }
+        closeList();
+        output.push(`<p>${inlineMarkup(line, currentPath)}</p>`);
+      }
+      closeList();
+      if (fence) output.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+      return output.join("");
+    }
+
+    function revokePreviewObjectUrl() {
+      if (state.previewObjectUrl) URL.revokeObjectURL(state.previewObjectUrl);
+      state.previewObjectUrl = null;
+    }
+
+    function mimeFor(file) {
+      const map = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif", ".bmp": "image/bmp", ".ico": "image/x-icon", ".pdf": "application/pdf" };
+      return map[file.extension] || (file.binary ? "application/octet-stream" : "text/plain;charset=utf-8");
+    }
+
+    function metadataMarkup(file) {
+      const name = fileNameParts(file);
+      const directory = file.path.includes("/") ? file.path.split("/").slice(0, -1).join("/") : "Repository root";
+      const values = [
+        ["Path", file.path],
+        ["Filnamn", name.fullName],
+        ["Filändelse", name.extensionLabel],
+        ["Katalog", directory],
+        ["Object type", file.objectType],
+        ["Blob SHA / lokal Git-SHA", file.sha || "—"],
+        ["Storlek", `${formatBytes(file.size)} (${formatNumber(file.size)} bytes)`],
+        ["Område", file.area],
+        ["Representation", file.binary ? "binary" : "UTF-8 text"],
+        ["Textrader", file.binary ? "N/A" : formatNumber(file.lines)],
+        ["Källa", file.source],
+        ["Senast ändrad lokalt", file.lastModified ? formatDateTime(file.lastModified) : "N/A"]
+      ];
+      return `<dl class="metadata-grid">${values.map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd class="${key.includes("SHA") || key === "Path" ? "mono" : ""}">${escapeHtml(value)}</dd>`).join("")}</dl>`;
+    }
+
+    function previewBody(file) {
+      if (state.previewMode === "metadata") return metadataMarkup(file);
+      if (state.previewMode === "raw") {
+        if (file.binary) return '<div class="binary-preview"><p>Binära bytes har ingen säker textrepresentation. Använd nedladdning för exakt laddad fil.</p></div>';
+        return `<pre class="raw-content">${escapeHtml(file.text || "")}</pre>`;
+      }
+      if (file.binary) {
+        const imageTypes = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico"]);
+        if (imageTypes.has(file.extension) && file.bytes) {
+          revokePreviewObjectUrl();
+          state.previewObjectUrl = URL.createObjectURL(new Blob([file.bytes], { type: mimeFor(file) }));
+          return `<div class="binary-preview"><img src="${escapeHtml(state.previewObjectUrl)}" alt="Säker lokal preview av ${escapeHtml(file.path)}"><p>${escapeHtml(file.path)} · ${formatBytes(file.size)}</p></div>`;
+        }
+        return `<div class="binary-preview"><p>Preview kör inte binärt innehåll. Exakt objekt är laddat som ${formatBytes(file.size)} och kan laddas ned.</p></div>`;
+      }
+      if (file.extension === ".md") return `<div class="markdown">${renderMarkdown(file.text || "", file.path)}</div>`;
+      if (file.extension === ".json" || file.extension === ".schema.json") {
+        try { return `<pre class="raw-content">${escapeHtml(JSON.stringify(JSON.parse(file.text), null, 2))}</pre>`; } catch { return `<pre class="raw-content">${escapeHtml(file.text || "")}</pre>`; }
+      }
+      if (file.extension === ".jsonl") {
+        const formatted = file.text.split(/\r?\n/).map((line) => {
+          if (!line.trim()) return "";
+          try { return JSON.stringify(JSON.parse(line), null, 2); } catch { return line; }
+        }).join("\n");
+        return `<pre class="raw-content">${escapeHtml(formatted)}</pre>`;
+      }
+      return `<pre class="raw-content">${escapeHtml(file.text || "")}</pre>`;
+    }
+
+    function renderFilePreview() {
+      const file = state.files.find((item) => item.path === state.selectedPath);
+      revokePreviewObjectUrl();
+      if (!file) {
+        $("#filePreview").innerHTML = '<div class="preview-empty">Välj en fil i trädet för att öppna exakt laddat innehåll.</div>';
+        return;
+      }
+      const name = fileNameParts(file);
+      $("#filePreview").innerHTML = `<div class="preview-head">
+        <span class="file-name-line"><strong>${escapeHtml(name.stem)}</strong><span class="file-extension${name.extension === "[no extension]" ? " none" : ""}">${escapeHtml(name.extensionLabel)}</span></span>
+        <span class="preview-path faint mono">${escapeHtml(file.path)}</span>
+        <span class="faint">${formatBytes(file.size)} · ${file.binary ? "binary" : `${formatNumber(file.lines)} rader`}</span>
+        <div class="preview-tabs">
+          ${["preview", "raw", "metadata"].map((mode) => `<button class="tab-btn${state.previewMode === mode ? " active" : ""}" type="button" data-preview-mode="${mode}">${({ preview: "Preview", raw: "Raw", metadata: "Metadata" })[mode]}</button>`).join("")}
+          <button class="tab-btn" type="button" data-download-file="${escapeHtml(file.path)}">Ladda ned</button>
+        </div>
+      </div>${previewBody(file)}`;
+    }
+
+    function renderExplorer() {
+      populateExplorerFilters();
+      renderFileList();
+      renderFilePreview();
+    }
+
+    function renderAllNotes() {
+      const query = $("#noteSearch").value.trim().toLocaleLowerCase("sv");
+      const type = $("#noteFilter").value;
+      const notes = prioritizedNotes().filter((note) => {
+        if (type !== "all" && note.type !== type) return false;
+        return !query || `${note.type} ${note.path} ${note.text}`.toLocaleLowerCase("sv").includes(query);
+      });
+      setBadge("#noteCountBadge", `${formatNumber(notes.length)} / ${formatNumber(state.analysis.notes.length)} NOTISER`, notes.length === state.analysis.notes.length ? "info" : "warn");
+      renderNotes("#allNotes", notes);
+    }
+
+    function renderAll() {
+      updateLiveHeader();
+      renderOverview();
+      renderContent();
+      renderQuality();
+      renderSources();
+      renderExplorer();
+      renderAllNotes();
+    }
+
+    function switchView(view) {
+      if (!$(`.view[data-view="${cssEscape(view)}"]`)) return;
+      state.activeView = view;
+      $$(".view").forEach((element) => element.classList.toggle("active", element.dataset.view === view));
+      $$("[data-nav]").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.nav === view)));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openRepositoryPath(path) {
+      const file = state.files.find((item) => item.path === path);
+      if (!file) { showToast(`Path saknas i laddad tree: ${path}`); return; }
+      state.selectedPath = file.path;
+      state.previewMode = "preview";
+      $("#fileSearch").value = "";
+      $("#typeFilter").value = "all";
+      $("#areaFilter").value = "all";
+      state.filterCollapsedDirectories.clear();
+      expandPathAncestors(file.path);
+      renderFileList();
+      renderFilePreview();
+      switchView("explorer");
+    }
+
+    function downloadFile(path) {
+      const file = state.files.find((item) => item.path === path);
+      if (!file) return;
+      const bytes = file.bytes || new TextEncoder().encode(file.text || "");
+      const url = URL.createObjectURL(new Blob([bytes], { type: mimeFor(file) }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = file.path.split("/").pop() || "repository-file";
+      anchor.rel = "noopener";
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function openConnectDialog() {
+      $("#connectError").classList.add("hidden");
+      if (!$("#connectDialog").open) $("#connectDialog").showModal();
+    }
+
+    async function chooseLocalFolder() {
+      if ($("#connectDialog").open) $("#connectDialog").close();
+      if ("showDirectoryPicker" in window) {
+        try {
+          const handle = await window.showDirectoryPicker({ mode: "read" });
+          await loadLocalHandle(handle);
+        } catch (error) {
+          setBusy(false);
+          if (["SecurityError", "NotSupportedError", "TypeError"].includes(error?.name)) $("#folderInput").click();
+          else if (error?.name !== "AbortError") showToast(safeErrorMessage(error));
+        }
+      } else {
+        $("#folderInput").click();
+      }
+    }
+
+    document.addEventListener("click", (event) => {
+      const nav = event.target.closest("[data-nav]");
+      if (nav) switchView(nav.dataset.nav);
+      const jump = event.target.closest("[data-jump]");
+      if (jump) switchView(jump.dataset.jump);
+      if (event.target.closest("[data-open-connect]")) openConnectDialog();
+      if (event.target.closest("[data-open-local]")) chooseLocalFolder();
+      const close = event.target.closest("[data-dialog-close]");
+      if (close) $("#connectDialog").close();
+      const directoryRow = event.target.closest("[data-directory-path]");
+      if (directoryRow) toggleDirectory(directoryRow.dataset.directoryPath, true);
+      const fileRow = event.target.closest("[data-file-path]");
+      if (fileRow) {
+        state.selectedPath = fileRow.dataset.filePath;
+        state.previewMode = "preview";
+        renderFileList();
+        renderFilePreview();
+        focusTreeItem("file", state.selectedPath);
+        if (window.matchMedia?.("(max-width: 860px)")?.matches) $("#filePreview").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      const path = event.target.closest("[data-open-path]");
+      if (path) openRepositoryPath(path.dataset.openPath);
+      const previewTab = event.target.closest("[data-preview-mode]");
+      if (previewTab) { state.previewMode = previewTab.dataset.previewMode; renderFilePreview(); }
+      const download = event.target.closest("[data-download-file]");
+      if (download) downloadFile(download.dataset.downloadFile);
+    });
+
+    $("#fileList").addEventListener("keydown", (event) => {
+      const current = event.target.closest("[role='treeitem']");
+      if (!current) return;
+      const items = $$("#fileList [role='treeitem']");
+      const index = items.indexOf(current);
+      const level = Number(current.getAttribute("aria-level")) || 1;
+      const focusAt = (nextIndex) => items[Math.max(0, Math.min(items.length - 1, nextIndex))]?.focus();
+      if (event.key === "ArrowDown") { event.preventDefault(); focusAt(index + 1); }
+      else if (event.key === "ArrowUp") { event.preventDefault(); focusAt(index - 1); }
+      else if (event.key === "Home") { event.preventDefault(); focusAt(0); }
+      else if (event.key === "End") { event.preventDefault(); focusAt(items.length - 1); }
+      else if (event.key === "ArrowRight" && current.dataset.directoryPath) {
+        event.preventDefault();
+        if (current.getAttribute("aria-expanded") === "false") toggleDirectory(current.dataset.directoryPath, true);
+        else if (Number(items[index + 1]?.getAttribute("aria-level")) > level) focusAt(index + 1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        if (current.dataset.directoryPath && current.getAttribute("aria-expanded") === "true") toggleDirectory(current.dataset.directoryPath, true);
+        else {
+          for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+            if (Number(items[cursor].getAttribute("aria-level")) < level) { items[cursor].focus(); break; }
+          }
+        }
+      }
+    });
+
+    $("#connectButton").addEventListener("click", openConnectDialog);
+    $("#refreshButton").addEventListener("click", () => refreshSource());
+    $("#showGithubForm").addEventListener("click", () => {
+      $("#githubForm").classList.remove("hidden");
+      $("#choiceActions").classList.add("hidden");
+      $("#ownerInput").focus();
+    });
+    $("#localFolderButton").addEventListener("click", chooseLocalFolder);
+    $("#githubForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const source = {
+        owner: $("#ownerInput").value.trim(),
+        repo: $("#repoInput").value.trim(),
+        ref: $("#refInput").value.trim()
+      };
+      const token = $("#tokenInput").value;
+      $("#tokenInput").value = "";
+      $("#connectError").classList.add("hidden");
+      try {
+        $("#connectDialog").close();
+        await loadGithubSource(source, token);
+      } catch (error) {
+        state.token = "";
+        setBusy(false);
+        openConnectDialog();
+        $("#connectError").textContent = safeErrorMessage(error);
+        $("#connectError").classList.remove("hidden");
+      }
+    });
+    $("#folderInput").addEventListener("change", async (event) => {
+      if (!event.target.files?.length) return;
+      try { await loadLocalFileList(event.target.files); }
+      catch (error) { setBusy(false); showToast(safeErrorMessage(error)); }
+      finally { event.target.value = ""; }
+    });
+    const refreshFileFilter = () => { state.filterCollapsedDirectories.clear(); renderFileList(); };
+    $("#fileSearch").addEventListener("input", refreshFileFilter);
+    $("#typeFilter").addEventListener("change", refreshFileFilter);
+    $("#areaFilter").addEventListener("change", refreshFileFilter);
+    $("#expandAllDirectories").addEventListener("click", () => setAllDirectories(true));
+    $("#collapseAllDirectories").addEventListener("click", () => setAllDirectories(false));
+    $("#noteSearch").addEventListener("input", renderAllNotes);
+    $("#noteFilter").addEventListener("change", renderAllNotes);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && state.source?.mode === "github") refreshSource({ silent: true });
+    });
+    window.addEventListener("beforeunload", () => {
+      stopPolling();
+      revokePreviewObjectUrl();
+      state.token = "";
+    });
+
+    function applyUrlConfiguration() {
+      const params = new URL(window.location.href).searchParams;
+      const owner = params.get("owner") || DEFAULT_SOURCE.owner;
+      const repo = params.get("repo") || DEFAULT_SOURCE.repo;
+      const ref = params.get("ref") || DEFAULT_SOURCE.ref;
+      $("#ownerInput").value = owner;
+      $("#repoInput").value = repo;
+      $("#refInput").value = ref;
+      if (params.get("autoload") === "1" && owner && repo) {
+        loadGithubSource({ owner, repo, ref }, "").catch((error) => {
+          state.token = "";
+          setBusy(false);
+          openConnectDialog();
+          $("#connectError").textContent = safeErrorMessage(error);
+          $("#connectError").classList.remove("hidden");
+          $("#githubForm").classList.remove("hidden");
+          $("#choiceActions").classList.add("hidden");
+        });
+      }
+    }
+
+    window.__RID_TEST__ = Object.freeze({
+      analyzeRepository,
+      parseFrontmatter,
+      parseMarkdownLinks,
+      parseStatusPhases,
+      parseCsvShape,
+      normalizeRepoPath,
+      renderMarkdown,
+      buildFileTree,
+      directoryPaths,
+      fileNameParts,
+      extensionOf,
+      textLineCount
+    });
+
+    document.title = `${INSTALL_CONFIG.appName} · Live Repository Intelligence`;
+    $("#appBrandName").textContent = INSTALL_CONFIG.appName;
+    applyUrlConfiguration();
+  })();
+  </script>
+</body>
+</html>

@@ -93,6 +93,11 @@ read-only network behavior, tree interactions, generic configuration boundary,
 documentation, installer, reconfiguration flow, and credential-shaped values.
 It also installs a disposable copy and validates that copy.
 
+When generalizing from another project, a build environment may additionally
+set `RID_FORBIDDEN_IDENTITIES` to newline-separated non-secret source markers.
+The validator scans for those values without storing or printing them in the
+distribution. Never use this variable for credentials.
+
 ## Important limits
 
 - Repository scores are diagnostics, not security certification or approval.
@@ -104,10 +109,9 @@ It also installs a disposable copy and validates that copy.
 - Very large repositories can be slow or hit GitHub API limits because exact
   blob bytes are intentionally loaded instead of using cached snapshot data.
 
-## License choice
+## License
 
-No redistribution license is selected by this template. Before publishing or
-handing the application to third parties, review and complete
-[`LICENSE.template`](LICENSE.template) with the license and copyright holder
-you intend to use.
-
+This project is open source under the [MIT License](LICENSE). You may use,
+copy, modify, publish, distribute, sublicense, and sell copies of the software,
+provided that the copyright and license notices are kept with copies or
+substantial portions. The software is provided without warranty.
